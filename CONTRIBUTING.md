@@ -1,6 +1,32 @@
-# Contributing to PVGPU
+# Contributing to Limiar
 
-Thank you for your interest in contributing to PVGPU! This is an ambitious project that aims to bring GPU paravirtualization to Windows VMs.
+The active project is Limiar. Start with the root Cargo workspace and the
+[development plan](docs/DEVELOPMENT-PLAN.md). The old PVGPU directories below
+are historical prototype components, not the current build path.
+
+## Current Development
+
+Use the pinned Rust toolchain and keep the root `Cargo.lock` committed.
+
+```powershell
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --all-targets --locked
+cargo build --release --locked
+```
+
+Do not publish raw `.limiar/` reports, VM images, serial numbers, instance paths,
+or personal transcripts. Sanitized validation summaries must distinguish native
+host tests from guest tests and document unknown/unsupported capabilities.
+Never disable or dismount a device as part of a diagnostic command.
+
+The initial CLI uses the existing MIT OR Apache-2.0 terms. Preserve dependency
+notices. Proposals for different licenses need a separate review.
+
+## Historical PVGPU Contribution Notes
+
+The remainder documents the previous prototype and is not a list of current
+Limiar prerequisites or priorities.
 
 ## Areas Where We Need Help
 

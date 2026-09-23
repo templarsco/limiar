@@ -1,7 +1,10 @@
 # Rust
 /backend/target/
 **/*.rs.bk
-Cargo.lock
+/backend/Cargo.lock
+/target/
+/third_party/
+/.limiar/
 
 # C/C++ build artifacts
 *.o

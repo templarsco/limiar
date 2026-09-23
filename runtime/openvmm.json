@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "repository": "https://github.com/microsoft/openvmm.git",
+  "revision": "f60e3d6a57ce5d0cfee48ead3bca5ce9908effba",
+  "rust_toolchain": "1.95.0",
+  "features": ["virt_whp", "net_consomme"]
+}
