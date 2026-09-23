@@ -52,11 +52,22 @@ remain Windows-only in this release.
 
 ### Hosted CI
 
-GitHub-hosted jobs did not start because of an account-level service
-restriction. No remote compilation/test logs were produced. The failed run
-status is not being replaced with a fabricated green check: hosted CI remains
-unverified, independently of the successful local Windows and Ubuntu runs.
-See PR #2 and the workflow annotations for the provider-side restriction.
+The initial GitHub-hosted attempts did not start because of an account-level
+service restriction. After that restriction was cleared, attempt 2 of the
+[Limiar workflow run 35906575204](https://github.com/templarsco/limiar/actions/runs/35906575204)
+passed on September 23, 2026, against commit
+`1a0b9bdb600b746820d5191eaeae9123722cd059`.
+
+| Hosted job | Result |
+| --- | --- |
+| Ubuntu | Formatting, Clippy, 13 unit tests, 6 CLI tests, release build, and CLI smoke passed |
+| Windows | Formatting, Clippy, 14 unit tests, 6 CLI tests, release build, and CLI smoke passed |
+| Windows packaging | Dependency notices collected and CLI artifact uploaded |
+
+The published artifact is `limiar-cli-windows-x64` (ID `10782405898`,
+681,638 bytes). GPU hardware and guest-boot results below remain local tests;
+they are not inferred from these hosted runners. CodeQL analysis is a separate
+workflow and is not covered by the CLI result above.
 
 ## Native GPU
 

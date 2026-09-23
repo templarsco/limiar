@@ -1,7 +1,7 @@
 # Limiar Development Plan
 
-Status: first vertical slice implemented and locally validated, September 23,
-2026. Published in PR #2; later milestones remain planned.
+Status: first vertical slice implemented and validated locally and in hosted
+CLI CI, September 23, 2026. Published in PR #2; later milestones remain planned.
 
 ## Product
 
@@ -30,9 +30,10 @@ Each phase must produce evidence before its status changes to complete.
 
 ## M0: Reproducible Foundation
 
-Status: complete for the initial development slice. Hosted CI did not start
-because of an account-level service restriction; local Windows and Ubuntu
-checks passed. This does not mean that the full Hub roadmap is complete.
+Status: complete for the initial development slice. Local checks and the
+hosted Limiar workflow passed on Windows and Ubuntu after the initial service
+restriction was cleared. CodeQL is tracked separately from the CLI workflow.
+This does not mean that the full Hub roadmap is complete.
 
 - [x] Inspect the current repository and preserve unrelated local changes.
 - [x] Select and record the upstream OpenVMM commit.
