@@ -5,7 +5,7 @@
 > capabilities of Limiar. Paths in command examples assume the repository root.
 > See the [current README](../../README.md) for the supported development path.
 
-[![Build](https://github.com/SANSI-GROUP/pvgpu/actions/workflows/build.yml/badge.svg)](https://github.com/SANSI-GROUP/pvgpu/actions/workflows/build.yml)
+[![Legacy Checks](https://github.com/templarsco/limiar/actions/workflows/legacy-pvgpu.yml/badge.svg)](https://github.com/templarsco/limiar/actions/workflows/legacy-pvgpu.yml)
 [![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](../../LICENSE-MIT)
 
 **GPU paravirtualization for Windows guests on Windows hosts** - bringing QEMU/KVM-style VM customization freedom to Windows while providing GPU acceleration for gaming.

@@ -1,6 +1,6 @@
 # Limiar
 
-[![Build](https://github.com/templarsco/pvgpu/actions/workflows/build.yml/badge.svg)](https://github.com/templarsco/pvgpu/actions/workflows/build.yml)
+[![Build](https://github.com/templarsco/limiar/actions/workflows/build.yml/badge.svg)](https://github.com/templarsco/limiar/actions/workflows/build.yml)
 
 **A capability-aware virtualization hub, starting with a Windows CLI and
 OpenVMM.** Formerly the PVGPU experimental GPU-remoting project.
@@ -89,8 +89,8 @@ feature checkboxes are not evidence of end-to-end functionality.
 
 Limiar currently retains the repository's [MIT](LICENSE-MIT) OR
 [Apache-2.0](LICENSE-APACHE) licensing. OpenVMM keeps its MIT notices; the legacy
-QEMU device keeps its GPL terms. A future licensing or repository-name change
-is a separate decision.
+QEMU device keeps its GPL terms. Future licensing changes remain a separate
+decision.
 
 Windows CI packages collect dependency notices with
 `scripts/Write-ThirdPartyNotices.ps1`. The generated inventory includes

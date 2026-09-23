@@ -21,8 +21,9 @@ Each phase must produce evidence before its status changes to complete.
 - Keep the legacy PVGPU sources in place, outside the new Cargo workspace.
 - Keep existing licenses and third-party notices. Licensing changes require a
   separate ownership and dependency review.
-- Do not rename the GitHub repository or remove historical issues as part of
-  the initial implementation.
+- The GitHub repository was renamed to `templarsco/limiar` on September 23,
+  2026. Preserve the existing history and issues; PVGPU remains the name of the
+  historical prototype.
 - Treat GPU passthrough on Windows client as an experiment, not a supported
   feature merely because an API or PowerShell command exists.
 - Do not promise universal game or anti-cheat compatibility.
