@@ -38,6 +38,26 @@ The checks cover strict profiles, resource bounds, path resolution, report
 non-overwrite behavior, adapter selection, software-adapter rejection, timeouts,
 process cleanup, log read limits, and rejection of panic/unverified exits.
 
+### Ubuntu CLI Parity
+
+An additional local Ubuntu/WSL run used an isolated Linux Rust 1.95.0
+installation under ignored `.limiar/wsl/`. Formatting, Clippy, release build,
+13 unit tests, and 6 CLI integration tests passed. The two supervisor helpers
+remained intentionally ignored in the parent test run. The Windows-only pixel
+validation unit test accounts for the difference from the Windows count.
+
+This checks the platform-independent CLI and supervisor, not a Linux-host
+OpenVMM, KVM/VFIO, or GPU implementation. WHP execution and D3D11 diagnostics
+remain Windows-only in this release.
+
+### Hosted CI
+
+GitHub-hosted jobs did not start because of an account-level service
+restriction. No remote compilation/test logs were produced. The failed run
+status is not being replaced with a fabricated green check: hosted CI remains
+unverified, independently of the successful local Windows and Ubuntu runs.
+See PR #2 and the workflow annotations for the provider-side restriction.
+
 ## Native GPU
 
 ```powershell
@@ -51,6 +71,9 @@ Result: **passed** on the RX 9070 XT, DXGI software flag false.
 - 12,288 pixels verified, including row-pitch handling.
 - Observed release-test wall time: 42 ms, including host-side setup.
 - No WARP fallback, custom WDDM driver, device reset, dismount, or assignment.
+
+Additional native tests also passed, including a 35 ms release run. These are
+individual observations, not a statistical performance comparison.
 
 This is not a sustained-load benchmark or a guest GPU test. The wall time is
 not a GPU timestamp measurement and cannot be converted to a gaming FPS claim.

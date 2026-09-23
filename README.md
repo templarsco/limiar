@@ -91,3 +91,7 @@ Limiar currently retains the repository's [MIT](LICENSE-MIT) OR
 [Apache-2.0](LICENSE-APACHE) licensing. OpenVMM keeps its MIT notices; the legacy
 QEMU device keeps its GPL terms. A future licensing or repository-name change
 is a separate decision.
+
+Windows CI packages collect dependency notices with
+`scripts/Write-ThirdPartyNotices.ps1`. The generated inventory includes
+development dependencies and is not a substitute for a production license review.

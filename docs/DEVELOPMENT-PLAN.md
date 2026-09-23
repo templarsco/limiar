@@ -1,6 +1,7 @@
 # Limiar Development Plan
 
-Status: executing the first vertical slice, September 23, 2026.
+Status: first vertical slice implemented and locally validated, September 23,
+2026. Published in PR #2; later milestones remain planned.
 
 ## Product
 
@@ -28,7 +29,9 @@ Each phase must produce evidence before its status changes to complete.
 
 ## M0: Reproducible Foundation
 
-Status: in progress.
+Status: complete for the initial development slice. Hosted CI did not start
+because of an account-level service restriction; local Windows and Ubuntu
+checks passed. This does not mean that the full Hub roadmap is complete.
 
 - [x] Inspect the current repository and preserve unrelated local changes.
 - [x] Select and record the upstream OpenVMM commit.
@@ -39,7 +42,7 @@ Status: in progress.
 - [x] Run a bounded native D3D11 test on the explicitly selected RX 9070 XT.
 - [x] Restore required dependencies and build the pinned OpenVMM runtime.
 - [x] Boot a Linux guest through WHP and retain serial evidence.
-- [ ] Publish the first tested implementation and an honest capability matrix.
+- [x] Publish the first tested implementation and an honest capability matrix.
 
 Exit criteria: a fresh checkout can build the CLI; unit and integration tests
 pass; hardware evidence identifies the adapter actually tested; at least one

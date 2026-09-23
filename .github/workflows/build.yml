@@ -32,6 +32,9 @@ jobs:
         run: cargo build --release --locked -p limiar
       - name: CLI smoke
         run: cargo run --locked -- --help
+      - name: Collect dependency notices
+        if: runner.os == 'Windows'
+        run: ./scripts/Write-ThirdPartyNotices.ps1 -OutputPath target/release/THIRD_PARTY_NOTICES.txt
       - name: Upload Windows CLI
         if: runner.os == 'Windows'
         uses: actions/upload-artifact@v4
@@ -42,4 +45,5 @@ jobs:
             README.md
             LICENSE-MIT
             LICENSE-APACHE
+            target/release/THIRD_PARTY_NOTICES.txt
           if-no-files-found: error
