@@ -1,0 +1,16 @@
+schema_version = 1
+name = "linux-smoke"
+cpus = 2
+memory_mib = 512
+
+[runtime]
+executable = "../third_party/openvmm/target/release/openvmm.exe"
+
+[boot]
+kind = "linux_direct"
+kernel = "../third_party/openvmm/.packages/underhill-deps-private/x64/vmlinux"
+initrd = "../third_party/openvmm/.packages/underhill-deps-private/x64/initrd"
+cmdline = "console=ttyS0 panic=-1"
+
+[verification]
+serial_marker = "No root device specified. Dropping to a shell."

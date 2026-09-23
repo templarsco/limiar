@@ -1,140 +1,93 @@
-# PVGPU - Paravirtualized GPU for Windows VMs
+# Limiar
 
-[![Build](https://github.com/SANSI-GROUP/pvgpu/actions/workflows/build.yml/badge.svg)](https://github.com/SANSI-GROUP/pvgpu/actions/workflows/build.yml)
-[![License](https://img.shields.io/badge/license-MIT%2FApache--2.0-blue.svg)](LICENSE)
+[![Build](https://github.com/templarsco/pvgpu/actions/workflows/build.yml/badge.svg)](https://github.com/templarsco/pvgpu/actions/workflows/build.yml)
 
-**GPU paravirtualization for Windows guests on Windows hosts** - bringing QEMU/KVM-style VM customization freedom to Windows while providing GPU acceleration for gaming.
+**A capability-aware virtualization hub, starting with a Windows CLI and
+OpenVMM.** Formerly the PVGPU experimental GPU-remoting project.
 
-## 🎯 The Problem We Solve
+This is an early developer release, not a completed desktop hypervisor or a
+production-ready gaming VM. The first implementation provides local diagnostics,
+a bounded native GPU test, validated VM profiles, and supervised runtime
+launches. It does not implement GPU passthrough or GPU sharing.
 
-On Linux, QEMU/KVM + VFIO gives you:
-- ✅ Full VM identity customization (SMBIOS, CPUID, firmware)
-- ✅ GPU passthrough for near-native gaming performance
+## Try The CLI
 
-On Windows, your options are limited:
-- **Hyper-V/NanaBox**: GPU-PV works, but no identity customization
-- **QEMU with WHPX**: Full customization, but no GPU acceleration for Windows guests
-- **VMware/Parallels**: Proprietary, limited customization
-
-**PVGPU bridges this gap** - run Windows VMs with QEMU's customization AND GPU acceleration, all on a Windows host.
-
-## 🏗️ Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  Windows Guest (10/11)                                          │
-│  └── Game/App (DX11) → WDDM Paravirt Driver (KMD + UMD)         │
-│            │                                                    │
-│            ▼ Shared Memory (Command Rings + Fences)             │
-├─────────────────────────────────────────────────────────────────┤
-│  QEMU (WHPX acceleration)                                       │
-│  └── qemu-pvgpu device (PCIe virtual, BAR0 config, BAR2 shmem)  │
-│            │                                                    │
-│            ▼                                                    │
-├─────────────────────────────────────────────────────────────────┤
-│  Host Backend Service (Rust)                                    │
-│  └── D3D11 Renderer → Real GPU (NVIDIA/AMD)                     │
-│  └── Presentation: Local window + Headless/Streaming            │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## 📦 Components
-
-| Component | Language | Description |
-|-----------|----------|-------------|
-| `protocol/` | C | Shared protocol definitions |
-| `qemu-device/` | C | QEMU PCIe device emulation |
-| `backend/` | Rust | Host rendering service (D3D11) |
-| `driver/kmd/` | C | Windows kernel-mode WDDM driver |
-| `driver/umd/` | C++ | Windows user-mode D3D11 driver |
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Windows 11 with Hyper-V/WHPX enabled
-- NVIDIA (10 series+) or AMD (RDNA+) GPU
-- [Rust](https://rustup.rs/) (for backend)
-- [QEMU](https://www.qemu.org/) with WHPX support
-- [Windows Driver Kit](https://docs.microsoft.com/en-us/windows-hardware/drivers/download-the-wdk) (for driver development)
-
-### Building
+Prerequisites: Rust via rustup, Visual Studio C++ Build Tools, and a Windows SDK.
+The repository pins Rust 1.95.0. No WDK or custom kernel driver is needed for
+the Limiar CLI. Graphics diagnostics and WHP execution require Windows.
 
 ```powershell
-# Build the backend service
-cd backend
-cargo build --release
-
-# For QEMU device - see qemu-device/README.md
-# For drivers - see driver/README.md
+cargo build --release --locked
+.\target\release\limiar.exe doctor
+.\target\release\limiar.exe gpu list
+.\target\release\limiar.exe gpu test --adapter "RX 9070 XT" --iterations 3
 ```
 
-### Running
+Adapter selection is explicit: use a DXGI index or an unambiguous name from
+`gpu list`. Software adapters are rejected by the hardware test. The test
+clears/copies a 64x64 texture and verifies its pixels; it is not a benchmark
+or proof of guest GPU acceleration.
+
+Commands produce JSON. `--output <new-file>` also saves a report and refuses
+to overwrite an existing file. Local reports can contain hardware instance
+paths; review them before sharing.
+
+## Build And Launch OpenVMM
 
 ```powershell
-# Start the backend service
-.\backend\target\release\pvgpu-backend.exe
-
-# Start QEMU with pvgpu device
-qemu-system-x86_64 -accel whpx -device pvgpu,shmem_size=256M ...
+.\scripts\Initialize-OpenVmm.ps1
+.\target\release\limiar.exe vm plan .\examples\linux-smoke.toml
+.\target\release\limiar.exe vm smoke .\examples\linux-smoke.toml --timeout-seconds 90
 ```
 
-## 🎮 Use Cases
+The setup script restores official upstream dependencies and builds the exact
+revision in [runtime/openvmm.json](runtime/openvmm.json). It refuses to overwrite
+a different or modified checkout. The runtime is a separate build and is not
+bundled into the CLI.
+The runtime setup also needs Git, the Windows `tar`/`curl` tools, network access,
+and several gigabytes of free disk space for dependencies and build artifacts.
 
-- **Gaming in VMs** with GPU acceleration AND custom VM identity
-- **Anti-fingerprinting** - appear as different hardware to guest OS
-- **Development/Testing** - test on various "hardware" configurations
-- **Streaming** - works with Parsec, Moonlight, Sunshine
+Profiles resolve file paths relative to the profile. `vm plan` reports missing
+inputs and returns a nonzero status until all required files exist. `vm smoke`
+requires a serial marker, records logs, and terminates the runtime after
+verification or timeout. `vm run` instead waits for a guest exit, bounded by
+its timeout. Logs and results are saved under `.limiar/runs/`.
 
-## 📊 Performance Targets
+Load only profiles you trust: `runtime.executable` selects a local program to
+execute. Profile validation is not a sandbox for untrusted host executables.
+The supplied Linux smoke checks that the upstream initrd reaches its shell,
+then deliberately stops the disposable VM; it is not an orderly shutdown test.
 
-- **Target**: 60-80% of native GPU performance
-- **Latency**: <50ms additional input latency
-- **API**: DirectX 11 (DX12 planned for future)
+The [Windows UEFI example](examples/windows-uefi.toml) needs an existing
+licensed disk image. It does not install Windows or configure Secure Boot/vTPM.
+The default memory overlay avoids persisting guest writes to that base image.
 
-## 🛣️ Roadmap
+## Development
 
-- [x] Protocol definition (shared header, command types, feature flags)
-- [x] QEMU PCIe device (BAR0 config, BAR2 shared memory, MSI-X, named pipe IPC)
-- [x] Rust backend service (D3D11 renderer, command processor, presentation pipeline)
-- [x] Full D3D11 command implementation (50+ DDI functions, all draw/state/resource commands)
-- [x] WDDM kernel-mode driver (BAR mapping, ring buffer, heap allocator, VidPn, interrupt handler)
-- [x] WDDM user-mode driver (D3D11 DDI, staging buffer, fence sync, compute shader support)
-- [x] Display mode support (720p-4K, 60-144Hz, dynamic resolution change)
-- [x] Presentation pipeline (windowed, headless, dual mode, VSync, frame events)
-- [x] Format support data (78 DXGI formats with capability flags)
-- [x] Shared resource opening (cross-process resource sharing)
-- [x] Compute shader support (CS dispatch, UAV, SRV, sampler, constant buffer binding)
-- [x] Error handling and robustness (device lost, OOM, shader errors, backend crash)
-- [x] Driver packaging (INF, WDK build configs, CI pipeline)
-- [ ] Integration testing (requires VM environment)
-- [ ] Performance optimization (profiling, command batching, telemetry)
-- [ ] DX12 support (future)
+```powershell
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --all-targets --locked
+.\scripts\Invoke-LocalValidation.ps1 -Adapter "RX 9070 XT" -RunSmoke
+```
 
-## 🤝 Contributing
+- [Complete development plan and status](docs/DEVELOPMENT-PLAN.md)
+- [Architecture and implementation boundaries](docs/ARCHITECTURE.md)
+- [Local validation: Windows 11 and RX 9070 XT](docs/validation/2026-09-23-foundation.md)
+- [Contribution guide](CONTRIBUTING.md)
 
-Contributions are welcome! This is an ambitious project that needs help with:
+Windows client device assignment is still an experiment. Limiar never disables
+or dismounts a GPU in this release. The existence of WHP/vPCI APIs does not
+establish that a particular GPU/OS combination supports assignment.
 
-- D3D11/D3D12 expertise
-- Windows driver development
-- QEMU device development
-- Testing on various hardware
+## Legacy And Licensing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+`backend/`, `driver/`, `protocol/`, and `qemu-device/` remain the old PVGPU
+prototype, outside the Limiar workspace. They are not required by this release.
+Their [historical README](docs/legacy/README.md) is preserved separately; old
+feature checkboxes are not evidence of end-to-end functionality.
 
-## 📜 License
-
-Dual-licensed under MIT and Apache 2.0. See [LICENSE-MIT](LICENSE-MIT) and [LICENSE-APACHE](LICENSE-APACHE).
-
-QEMU device code is GPL-2.0-or-later to match QEMU's license.
-
-## 🙏 Acknowledgments
-
-Inspired by:
-- [dxgkrnl](https://github.com/microsoft/WSL2-Linux-Kernel) - GPU-PV for WSL2
-- [virtio-gpu](https://www.qemu.org/) - QEMU's GPU virtualization
-- [Looking Glass](https://looking-glass.io/) - Low-latency VM display
-
-## ⚠️ Disclaimer
-
-This project is for legitimate use cases like development, testing, and privacy. It is not intended for bypassing anti-cheat systems or any malicious purposes.
+Limiar currently retains the repository's [MIT](LICENSE-MIT) OR
+[Apache-2.0](LICENSE-APACHE) licensing. OpenVMM keeps its MIT notices; the legacy
+QEMU device keeps its GPL terms. A future licensing or repository-name change
+is a separate decision.

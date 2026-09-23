@@ -1,0 +1,15 @@
+# Requires an existing, licensed Windows disk image.
+# This is a boot profile, not a Windows installer or a vTPM configuration.
+schema_version = 1
+name = "windows-uefi"
+cpus = 4
+memory_mib = 4096
+
+[runtime]
+executable = "../third_party/openvmm/target/release/openvmm.exe"
+
+[boot]
+kind = "uefi"
+firmware = "../third_party/openvmm/.packages/hyperv.uefi.mscoreuefi.x64.RELEASE/MsvmX64/RELEASE_VS2022/FV/MSVM.fd"
+disk = "../.limiar/images/windows.vhdx"
+read_only_base = true
