@@ -59,6 +59,10 @@ Set-Acl -LiteralPath $destination -AclObject $fileAcl
 if ($DisableHibernate) {
     & "$env:SystemRoot\System32\powercfg.exe" /hibernate off
     if ($LASTEXITCODE -ne 0) { throw 'Could not disable guest hibernation' }
+    & "$env:SystemRoot\System32\powercfg.exe" /setacvalueindex SCHEME_CURRENT SUB_BUTTONS PBUTTONACTION 3
+    if ($LASTEXITCODE -ne 0) { throw 'Could not configure guest power-button shutdown' }
+    & "$env:SystemRoot\System32\powercfg.exe" /setactive SCHEME_CURRENT
+    if ($LASTEXITCODE -ne 0) { throw 'Could not apply guest power settings' }
 }
 if ($PrepareStorage) {
     foreach ($service in @('storahci','stornvme','pciide')) {

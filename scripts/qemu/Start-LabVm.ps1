@@ -9,10 +9,12 @@ $operation = [IO.File]::Open((Join-Path $lab.Directory 'launch.lock'), [IO.FileM
 try {
     $status = Get-LimiarQemuStatus $lab
     if ($status.supervisor_active) { $status | ConvertTo-Json -Depth 8; return }
+    Assert-LimiarPrivateDirectory $lab.Directory
+    Assert-LimiarPrivateDirectory (Join-Path $lab.Directory 'control')
     $editable = Get-Content -LiteralPath $lab.Record.profile_path -Raw | ConvertFrom-Json -AsHashtable
     if ($editable.name -ne $lab.Record.name -or $editable.boot.kind -ne 'qemu_uefi' -or
         $editable.boot.disk -ne $lab.Record.disk_path -or $editable.boot.variables -ne $lab.Record.variables_path -or
-        $editable.boot.qmp_port -ne $lab.Record.qmp_port -or $editable.boot.read_only_base -ne $false -or
+        $editable.boot.qmp_socket -ne $lab.Record.qmp_socket -or $editable.boot.read_only_base -ne $false -or
         $editable.runtime.executable -ne $lab.Record.runtime_path -or $editable.boot.firmware -ne $lab.Record.firmware_path) {
         throw 'Lab name, runtime, firmware, storage, persistence and control endpoint must remain unchanged'
     }

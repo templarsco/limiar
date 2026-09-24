@@ -33,20 +33,24 @@ function Send-QmpRequest {
 function Invoke-LimiarQmp {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true)][ValidateRange(1024,65535)][int]$Port,
+        [Parameter(Mandatory = $true)][string]$SocketPath,
+        [Parameter(Mandatory = $true)][ValidateRange(1,2147483647)][int]$ProcessId,
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)]
         [ValidateSet('query-status','screendump','system_powerdown','send-key','input-send-event','query-cpus-fast')]
         [string]$Command,
         [hashtable]$Arguments = @{}
     )
-    $client = [Net.Sockets.TcpClient]::new([Net.Sockets.AddressFamily]::InterNetwork)
+    if (-not $IsWindows) { throw 'QMP peer-process verification requires Windows' }
+    $client = [Net.Sockets.Socket]::new([Net.Sockets.AddressFamily]::Unix,
+        [Net.Sockets.SocketType]::Stream, [Net.Sockets.ProtocolType]::Unspecified)
     $reader = $null
     $writer = $null
+    $stream = $null
     try {
-        $connection = $client.ConnectAsync([Net.IPAddress]::Loopback, $Port)
+        $connection = $client.ConnectAsync([Net.Sockets.UnixDomainSocketEndPoint]::new($SocketPath))
         if (-not $connection.Wait(5000)) { throw 'QMP connection timed out' }
-        $stream = $client.GetStream()
+        $stream = [Net.Sockets.NetworkStream]::new($client, $false)
         $stream.ReadTimeout = 5000
         $stream.WriteTimeout = 5000
         $reader = [IO.StreamReader]::new($stream, [Text.UTF8Encoding]::new($false, $true), $false, 4096, $true)
@@ -54,6 +58,10 @@ function Invoke-LimiarQmp {
         $writer.NewLine = "`n"
         $greeting = Read-QmpLine $reader | ConvertFrom-Json -AsHashtable
         if (-not $greeting.ContainsKey('QMP')) { throw 'Endpoint did not provide a QMP greeting' }
+        # Query after accept/greeting: the kernel supplies the connected server PID.
+        $peer = [byte[]]::new(4)
+        [void]$client.IOControl(0x58000100, [byte[]]@(), $peer) # SIO_AF_UNIX_GETPEERPID
+        if ([BitConverter]::ToUInt32($peer, 0) -ne $ProcessId) { throw 'QMP peer is not the supervised runtime' }
         [void](Send-QmpRequest $reader $writer 'qmp_capabilities' @{})
         $identity = Send-QmpRequest $reader $writer 'query-name' @{}
         if ($identity.name -ne $Name) { throw 'QMP machine name does not match this lab' }
@@ -61,6 +69,7 @@ function Invoke-LimiarQmp {
     } finally {
         if ($null -ne $writer) { $writer.Dispose() }
         if ($null -ne $reader) { $reader.Dispose() }
+        if ($null -ne $stream) { $stream.Dispose() }
         $client.Dispose()
     }
 }

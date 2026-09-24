@@ -17,16 +17,16 @@ foreach ($bad in @("bad`nargument", "bad`rargument", "bad`0argument")) {
     try { [void](ConvertTo-LimiarWindowsArgument $bad) } catch { $rejected = $true }
     Assert-Equal $rejected $true
 }
-function Get-NetTCPConnection {
-    param($State, $LocalPort, $ErrorAction)
-    return [pscustomobject]@{LocalAddress='127.0.0.1';OwningProcess=$script:listenerOwner}
+function Get-Process {
+    param($Id, $ErrorAction)
+    return [pscustomobject]@{Id=$Id;Path=$script:processPath}
 }
-$lab = [pscustomobject]@{Record=@{qmp_port=61234}}
+$lab = [pscustomobject]@{Record=@{runtime_path='qemu.exe'}}
 $status = @{supervisor_active=$true;state='running';last_run=@{runtime_pid=321}}
-$script:listenerOwner = 321
+$script:processPath = 'qemu.exe'
 Assert-LimiarQmpOwner $lab $status
 $assertions++
-$script:listenerOwner = 123
+$script:processPath = 'another-program.exe'
 $rejected = $false
 try { Assert-LimiarQmpOwner $lab $status } catch { $rejected = $true }
 Assert-Equal $rejected $true

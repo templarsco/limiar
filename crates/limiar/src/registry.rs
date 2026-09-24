@@ -187,13 +187,15 @@ fn validate_record(record: &VmRecord, name: &str) -> Result<()> {
             variables,
             disk,
             cdrom,
+            qmp_socket,
             ..
         } => {
             ensure!(
                 firmware.is_absolute()
                     && variables.is_absolute()
                     && disk.is_absolute()
-                    && cdrom.as_ref().is_none_or(|path| path.is_absolute()),
+                    && cdrom.as_ref().is_none_or(|path| path.is_absolute())
+                    && qmp_socket.as_ref().is_none_or(|path| path.is_absolute()),
                 "stored QEMU boot paths must be absolute"
             );
         }

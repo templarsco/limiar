@@ -60,7 +60,7 @@ pub enum Boot {
         read_only_base: bool,
         #[serde(default)]
         headless: bool,
-        qmp_port: Option<u16>,
+        qmp_socket: Option<PathBuf>,
     },
 }
 
@@ -123,13 +123,6 @@ impl VmConfig {
             } else {
                 identity.validate(matches!(self.boot, Boot::LinuxDirect { .. }))?;
             }
-        }
-        if let Boot::QemuUefi {
-            qmp_port: Some(port),
-            ..
-        } = self.boot
-        {
-            ensure!(port >= 1024, "QMP port must be 1024..65535");
         }
         if let Some(marker) = &self.verification.serial_marker {
             ensure!(
@@ -231,7 +224,7 @@ impl VmConfig {
                 cdrom,
                 read_only_base,
                 headless,
-                qmp_port,
+                qmp_socket,
             } => {
                 let firmware = input_path(base, firmware, "firmware", &mut inputs)?;
                 let variables = input_path(base, variables, "variables", &mut inputs)?;
@@ -294,11 +287,27 @@ impl VmConfig {
                 if *read_only_base {
                     arguments.push("-snapshot".into());
                 }
-                if let Some(port) = qmp_port {
-                    arguments.extend([
-                        "-qmp".into(),
-                        format!("tcp:127.0.0.1:{port},server=on,wait=off"),
-                    ]);
+                if let Some(socket) = qmp_socket {
+                    let socket = if socket.is_absolute() {
+                        socket.clone()
+                    } else {
+                        base.join(socket)
+                    };
+                    validate_socket_target(&socket)?;
+                    let parent = socket
+                        .parent()
+                        .context("QMP socket has no parent directory")?;
+                    inputs.push(Input {
+                        role: "control_directory",
+                        path: parent.to_owned(),
+                        exists: parent.is_dir(),
+                    });
+                    let socket = structured_path_arg(&socket)?;
+                    ensure!(
+                        socket.len() <= 107,
+                        "QMP Unix socket path must fit in 107 UTF-8 bytes"
+                    );
+                    arguments.extend(["-qmp".into(), format!("unix:{socket},server=on,wait=off")]);
                 }
                 if let Some(cdrom) = cdrom {
                     let cdrom = input_path(base, cdrom, "cdrom", &mut inputs)?;
@@ -386,6 +395,7 @@ impl VmConfig {
                 variables,
                 disk,
                 cdrom,
+                qmp_socket,
                 ..
             } => {
                 *firmware = resolve(firmware);
@@ -393,6 +403,9 @@ impl VmConfig {
                 *disk = resolve(disk);
                 if let Some(cdrom) = cdrom {
                     *cdrom = resolve(cdrom);
+                }
+                if let Some(socket) = qmp_socket {
+                    *socket = resolve(socket);
                 }
             }
         }
@@ -434,6 +447,54 @@ fn path_arg(path: &Path) -> Result<String> {
         "path contains control characters"
     );
     Ok(text.to_owned())
+}
+
+fn validate_socket_target(path: &Path) -> Result<()> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        use std::os::windows::io::AsRawHandle;
+        use windows::Win32::Foundation::HANDLE;
+        use windows::Win32::Storage::FileSystem::{
+            FILE_ATTRIBUTE_TAG_INFO, FileAttributeTagInfo, GetFileInformationByHandleEx,
+        };
+        let file = match fs::OpenOptions::new()
+            .access_mode(0x80) // FILE_READ_ATTRIBUTES
+            .share_mode(7)
+            .custom_flags(0x02200000) // BACKUP_SEMANTICS | OPEN_REPARSE_POINT
+            .open(path)
+        {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(error) => return Err(error).context("cannot inspect QMP socket path"),
+        };
+        let mut info = FILE_ATTRIBUTE_TAG_INFO::default();
+        unsafe {
+            GetFileInformationByHandleEx(
+                HANDLE(file.as_raw_handle()),
+                FileAttributeTagInfo,
+                &mut info as *mut _ as *mut _,
+                std::mem::size_of_val(&info) as u32,
+            )?;
+        }
+        ensure!(
+            info.ReparseTag == 0x80000023, // IO_REPARSE_TAG_AF_UNIX
+            "QMP endpoint would overwrite a non-socket file"
+        );
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::FileTypeExt;
+        match fs::symlink_metadata(path) {
+            Ok(metadata) => ensure!(
+                metadata.file_type().is_socket(),
+                "QMP endpoint would overwrite a non-socket file"
+            ),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(error) => return Err(error).context("cannot inspect QMP socket path"),
+        }
+    }
+    Ok(())
 }
 
 fn structured_path_arg(path: &Path) -> Result<String> {
@@ -485,14 +546,15 @@ variables = "vars.fd"
 disk = "system.qcow2"
 read_only_base = false
 headless = true
-qmp_port = 61234
+qmp_socket = "control/qmp.sock"
 [identity]
 preset = "limiar"
 "#;
 
     #[test]
-    fn qemu_plan_is_explicit_and_uses_only_loopback_control() {
+    fn qemu_plan_is_explicit_and_uses_filesystem_control() {
         let directory = tempfile::tempdir().unwrap();
+        fs::create_dir(directory.path().join("control")).unwrap();
         for file in [
             "qemu-system-x86_64.exe",
             "code.fd",
@@ -507,26 +569,35 @@ preset = "limiar"
         let plan = config.plan(directory.path()).unwrap();
         assert!(plan.ready);
         assert!(!plan.gpu_assignment);
-        assert_eq!(plan.inputs.len(), 4);
+        assert_eq!(plan.inputs.len(), 5);
         assert_eq!(plan.identity.unwrap().expected_dmi.len(), 22);
         for pair in [
             ["-accel", "whpx"],
             ["-cpu", "host"],
             ["-display", "none"],
             ["-nic", "none"],
-            ["-qmp", "tcp:127.0.0.1:61234,server=on,wait=off"],
         ] {
             assert!(plan.arguments.windows(2).any(|args| args == pair));
         }
         assert!(!plan.arguments.iter().any(|arg| arg == "-snapshot"));
         assert!(!plan.arguments.iter().any(|arg| arg == "--hypervisor"));
+        let socket = format!(
+            "unix:{},server=on,wait=off",
+            directory.path().join("control/qmp.sock").display()
+        );
+        assert!(
+            plan.arguments
+                .windows(2)
+                .any(|args| args == ["-qmp", &socket])
+        );
+        assert!(!plan.arguments.iter().any(|arg| arg.starts_with("tcp:")));
     }
 
     #[test]
     fn qemu_defaults_to_temporary_writes_and_no_management_listener() {
         let text = QEMU_PROFILE
             .replace("read_only_base = false\n", "")
-            .replace("qmp_port = 61234\n", "");
+            .replace("qmp_socket = \"control/qmp.sock\"\n", "");
         let plan = VmConfig::parse(&text)
             .unwrap()
             .plan(Path::new("/tmp"))
@@ -585,13 +656,21 @@ preset = "limiar"
     }
 
     #[test]
-    fn qemu_rejects_unsafe_port_aliases_and_missing_variables() {
-        assert!(VmConfig::parse(&QEMU_PROFILE.replace("61234", "1023")).is_err());
+    fn qemu_rejects_tcp_aliases_and_missing_variables() {
+        assert!(
+            VmConfig::parse(
+                &QEMU_PROFILE.replace("qmp_socket = \"control/qmp.sock\"", "qmp_port = 61234")
+            )
+            .is_err()
+        );
         assert!(VmConfig::parse(&QEMU_PROFILE.replace("variables = \"vars.fd\"\n", "")).is_err());
         let config = VmConfig::parse(
             &QEMU_PROFILE.replace("variables = \"vars.fd\"", "variables = \"code.fd\""),
         )
         .unwrap();
+        assert!(config.plan(Path::new("/tmp")).is_err());
+        let config =
+            VmConfig::parse(&QEMU_PROFILE.replace("control/qmp.sock", &"x".repeat(108))).unwrap();
         assert!(config.plan(Path::new("/tmp")).is_err());
         let config =
             VmConfig::parse(&QEMU_PROFILE.replace("code.fd", "code,readonly=off.fd")).unwrap();
@@ -660,6 +739,17 @@ serial_marker = "guest-ready"
         assert!(structured_path_arg(Path::new("disk,on=other")).is_err());
         assert!(structured_path_arg(Path::new("a=disk")).is_err());
         assert!(structured_path_arg(Path::new("disk with spaces.vhdx")).is_ok());
+    }
+
+    #[test]
+    fn control_socket_cannot_overwrite_existing_user_files() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("qmp.sock");
+        fs::write(&path, b"preserve").unwrap();
+        assert!(validate_socket_target(&path).is_err());
+        assert_eq!(fs::read(&path).unwrap(), b"preserve");
+        assert!(validate_socket_target(directory.path()).is_err());
+        assert!(validate_socket_target(&directory.path().join("missing.sock")).is_ok());
     }
 
     #[test]

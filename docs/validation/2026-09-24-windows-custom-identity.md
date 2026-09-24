@@ -70,7 +70,21 @@ The collector's BIOS date formatting was corrected for CIM's timezone
 conversion. Raw SMBIOS and System Information retained the configured
 calendar date throughout.
 
-## Limits
+## Control Endpoint
+
+Review identified that a loopback TCP listener was not an authorization
+boundary. Before release it was replaced with an AF_UNIX socket in a
+protected control directory. The pinned QEMU build was tested with the
+production client: a wrong peer PID was rejected, a DACL-denied connection
+failed with access denied, restoring the ACL restored connectivity, and
+the diskless transport probe opened no TCP listener.
+
+The Windows VM was then migrated to the protected endpoint without
+recreating its disk or changing its identity. Existing non-socket files
+are rejected before QEMU can replace an endpoint path. These controls
+trust the owning user, SYSTEM and Administrators, not every local user.
+
+## Remaining Limits
 
 - Shared RX 9070 XT graphics remain demonstrated only in the separate
   native Hyper-V/HCS labs, not in this QEMU guest.

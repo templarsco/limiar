@@ -12,7 +12,8 @@ if ($status.supervisor_active) {
             '--force','--wait-seconds','15'))
     } else {
         Assert-LimiarQmpOwner $lab $status
-        [void](Invoke-LimiarQmp -Port $lab.Record.qmp_port -Name $lab.Record.name -Command system_powerdown)
+        [void](Invoke-LimiarQmp -SocketPath $lab.Record.qmp_socket -ProcessId $status.last_run.runtime_pid `
+            -Name $lab.Record.name -Command system_powerdown)
         $deadline = [DateTime]::UtcNow.AddSeconds(120)
         do {
             Start-Sleep -Seconds 1

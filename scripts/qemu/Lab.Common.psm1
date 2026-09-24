@@ -15,6 +15,66 @@ function Write-LimiarLabJson {
     }
 }
 
+function New-LimiarPrivateDirectory {
+    param([string]$Path)
+    if ((Test-Path -LiteralPath $Path) -and
+        ((Get-Item -LiteralPath $Path).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+        throw 'Private control directory cannot be a link or junction'
+    }
+    [void][IO.Directory]::CreateDirectory($Path)
+    $acl = [Security.AccessControl.DirectorySecurity]::new()
+    $acl.SetAccessRuleProtection($true, $false)
+    foreach ($sid in @([Security.Principal.WindowsIdentity]::GetCurrent().User,
+        [Security.Principal.SecurityIdentifier]::new('S-1-5-18'),
+        [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))) {
+        $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
+            $sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
+    }
+    if (-not ('LimiarPrivateDirectoryAcl' -as [type])) {
+        Add-Type -TypeDefinition @'
+using System;
+using System.ComponentModel;
+using System.Runtime.InteropServices;
+public static class LimiarPrivateDirectoryAcl {
+    [DllImport("advapi32.dll", SetLastError = true)]
+    static extern bool GetSecurityDescriptorDacl(IntPtr descriptor, out bool present, out IntPtr dacl, out bool defaulted);
+    [DllImport("advapi32.dll", CharSet = CharSet.Unicode, EntryPoint = "SetNamedSecurityInfoW")]
+    static extern uint SetNamedSecurityInfo(string path, uint type, uint info, IntPtr owner, IntPtr group, IntPtr dacl, IntPtr sacl);
+    public static void Apply(string path, byte[] descriptor) {
+        var pin = GCHandle.Alloc(descriptor, GCHandleType.Pinned);
+        try {
+            bool present, defaulted;
+            IntPtr dacl;
+            if (!GetSecurityDescriptorDacl(pin.AddrOfPinnedObject(), out present, out dacl, out defaulted) || !present || dacl == IntPtr.Zero)
+                throw new InvalidOperationException("Missing private directory DACL");
+            // Update only the DACL, retaining any host audit/integrity policy.
+            uint error = SetNamedSecurityInfo(path, 1, 0x80000004, IntPtr.Zero, IntPtr.Zero, dacl, IntPtr.Zero);
+            if (error != 0) throw new Win32Exception((int)error);
+        } finally { pin.Free(); }
+    }
+}
+'@
+    }
+    [LimiarPrivateDirectoryAcl]::Apply([IO.Path]::GetFullPath($Path), $acl.GetSecurityDescriptorBinaryForm())
+}
+
+function Assert-LimiarPrivateDirectory {
+    param([string]$Path)
+    if ((Get-Item -LiteralPath $Path).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+        throw 'Private control directory cannot be a link or junction'
+    }
+    $allowed = @([Security.Principal.WindowsIdentity]::GetCurrent().User.Value, 'S-1-5-18', 'S-1-5-32-544')
+    $acl = Get-Acl -LiteralPath $Path
+    if (-not $acl.AreAccessRulesProtected -or $acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -notin $allowed) {
+        throw 'Control directory must have a protected, owner-controlled ACL'
+    }
+    foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
+        if ($rule.AccessControlType -eq 'Allow' -and $rule.IdentityReference.Value -notin $allowed) {
+            throw 'Control directory grants access to an untrusted principal'
+        }
+    }
+}
+
 function Invoke-LimiarCli {
     param([string]$Executable, [string[]]$Arguments)
     $output = & $Executable @Arguments
@@ -56,6 +116,7 @@ function Read-LimiarQemuLab {
     if ($record.directory -ne $directory -or $record.name -ne [IO.Path]::GetFileName($directory)) {
         throw 'QEMU lab directory or name mismatch'
     }
+    if ($record.qmp_socket -ne (Join-Path $directory 'control\qmp.sock')) { throw 'Unexpected control socket path' }
     $owner = [guid]::Empty
     if (-not [guid]::TryParseExact($record.owner_token, 'D', [ref]$owner)) { throw 'Invalid lab owner token' }
     foreach ($entry in @(@('disk_path','system.qcow2'), @('variables_path','variables.fd'),
@@ -77,7 +138,7 @@ function Read-LimiarQemuLab {
     }
     $profile = $registered.profile
     if ($profile.boot.kind -ne 'qemu_uefi' -or $profile.boot.disk -ne $record.disk_path -or
-        $profile.boot.variables -ne $record.variables_path -or $profile.boot.qmp_port -ne $record.qmp_port -or
+        $profile.boot.variables -ne $record.variables_path -or $profile.boot.qmp_socket -ne $record.qmp_socket -or
         $profile.runtime.executable -ne $record.runtime_path -or $profile.boot.firmware -ne $record.firmware_path) {
         throw 'Registered QEMU machine no longer matches this lab'
     }
@@ -95,11 +156,8 @@ function Assert-LimiarQmpOwner {
     param($Lab, $Status)
     if (-not $Status.supervisor_active -or $Status.state -ne 'running' -or
         $null -eq $Status.last_run.runtime_pid) { throw 'A supervised QEMU runtime is not running' }
-    $listeners = @(Get-NetTCPConnection -State Listen -LocalPort $Lab.Record.qmp_port -ErrorAction Stop |
-        Where-Object { $_.LocalAddress -eq '127.0.0.1' })
-    if ($listeners.Count -ne 1 -or $listeners[0].OwningProcess -ne $Status.last_run.runtime_pid) {
-        throw 'QMP listener is not owned by this VM runtime'
-    }
+    $process = Get-Process -Id $Status.last_run.runtime_pid -ErrorAction Stop
+    if ($process.Path -ne $Lab.Record.runtime_path) { throw 'Unexpected supervised runtime executable' }
 }
 
-Export-ModuleMember -Function Write-LimiarLabJson,Invoke-LimiarCli,ConvertTo-LimiarWindowsArgument,Read-LimiarQemuLab,Get-LimiarQemuStatus,Assert-LimiarQmpOwner
+Export-ModuleMember -Function Write-LimiarLabJson,New-LimiarPrivateDirectory,Assert-LimiarPrivateDirectory,Invoke-LimiarCli,ConvertTo-LimiarWindowsArgument,Read-LimiarQemuLab,Get-LimiarQemuStatus,Assert-LimiarQmpOwner

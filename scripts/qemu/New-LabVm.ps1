@@ -39,18 +39,13 @@ foreach ($path in @((Join-Path $root '.limiar'), $storage)) {
 }
 $directory = Join-Path $storage $Name
 if (Test-Path -LiteralPath $directory) { throw 'Lab directory exists; refusing to overwrite it' }
+$control = Join-Path $directory 'control'
+$socketPath = Join-Path $control 'qmp.sock'
+if ([Text.Encoding]::UTF8.GetByteCount($socketPath) -gt 107) { throw 'Use a shorter lab name or repository path for the local control socket' }
 $registry = Join-Path $root '.limiar\vms'
 if (Test-Path -LiteralPath (Join-Path $registry $Name.ToLowerInvariant())) { throw 'VM name is already registered' }
-[void][IO.Directory]::CreateDirectory($directory)
-$acl = [Security.AccessControl.DirectorySecurity]::new()
-$acl.SetAccessRuleProtection($true, $false)
-foreach ($sid in @([Security.Principal.WindowsIdentity]::GetCurrent().User,
-    [Security.Principal.SecurityIdentifier]::new('S-1-5-18'),
-    [Security.Principal.SecurityIdentifier]::new('S-1-5-32-544'))) {
-    $acl.AddAccessRule([Security.AccessControl.FileSystemAccessRule]::new(
-        $sid, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow'))
-}
-Set-Acl -LiteralPath $directory -AclObject $acl
+New-LimiarPrivateDirectory $directory
+New-LimiarPrivateDirectory $control
 $owner = [guid]::NewGuid().ToString()
 $disk = Join-Path $directory 'system.qcow2'
 $variables = Join-Path $directory 'variables.fd'
@@ -60,6 +55,7 @@ $record = [ordered]@{
     schema_version=1;provider='qemu_whpx';name=$Name;owner_token=$owner;directory=$directory
     status='importing';source_disk=$sourcePath;source_format=$SourceFormat;disk_path=$disk
     variables_path=$variables;profile_path=$profilePath;registry_path=$registry
+    qmp_socket=$socketPath
     runtime_path=$runtime.executable;runtime_sha256=$runtime.executable_sha256
     firmware_path=(Join-Path $runtime.directory 'share\edk2-x86_64-code.fd')
     gpu_mode='basic_display';network='none';contains_private_credentials=($null -ne $credential)
@@ -76,17 +72,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Converted disk metadata did not pass qemu-img check' }
     Copy-Item -LiteralPath (Join-Path $runtime.directory 'share\edk2-i386-vars.fd') -Destination $variables
     if ($null -ne $credential) { $credential | Export-Clixml -LiteralPath (Join-Path $directory 'credential.xml') }
-    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, 0)
-    try {
-        $listener.Start()
-        $record.qmp_port = $listener.LocalEndpoint.Port
-    } finally { $listener.Stop() }
     $profile = [ordered]@{
         schema_version=1;name=$Name;cpus=$CpuCount;memory_mib=$MemoryMiB
         runtime=@{executable=$runtime.executable}
         boot=[ordered]@{
             kind='qemu_uefi';firmware=$record.firmware_path;variables=$variables;disk=$disk
-            cpu_model=$CpuModel;read_only_base=$false;headless=$false;qmp_port=$record.qmp_port
+            cpu_model=$CpuModel;read_only_base=$false;headless=$false;qmp_socket=$socketPath
         }
         identity=@{
             preset='limiar'

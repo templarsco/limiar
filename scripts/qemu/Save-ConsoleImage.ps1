@@ -8,7 +8,8 @@ $lab = Read-LimiarQemuLab $LabPath
 $status = Get-LimiarQemuStatus $lab
 Assert-LimiarQmpOwner $lab $status
 $path = Join-Path $lab.Directory ('console-' + [guid]::NewGuid().ToString('N') + '.png')
-[void](Invoke-LimiarQmp -Port $lab.Record.qmp_port -Name $lab.Record.name -Command screendump `
+[void](Invoke-LimiarQmp -SocketPath $lab.Record.qmp_socket -ProcessId $status.last_run.runtime_pid `
+    -Name $lab.Record.name -Command screendump `
     -Arguments @{filename=$path;format='png'})
 if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'QEMU did not write a console image' }
 $path

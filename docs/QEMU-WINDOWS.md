@@ -133,8 +133,8 @@ This uses the pinned Python ISO-builder environment documented in
 [Windows Lab](WINDOWS-LAB.md). The media contains no passwords. On the next
 boot, run `setup.ps1` from the `LIMIAR_TOOLS` DVD as administrator inside
 the guest. The installer checks the intended guest UUID, protects the
-collector files and configures its startup task. Hibernation can be
-disabled for full-boot validation.
+collector files and configures its startup task. Its full-boot validation
+setup disables hibernation and configures AC power-button shutdown.
 
 The guest-only `Install-IdentityProbe.ps1` also has an explicit
 `-PrepareStorage` option for built-in AHCI/NVMe/IDE boot drivers before
@@ -161,11 +161,26 @@ Keep `.limiar/` private: disks, identifiers, logs and optional credentials
 belong to the local machine. `Show-Credential.ps1` displays a saved guest
 credential in a local dialog only when invoked, not in terminal output.
 
-QMP binds only to `127.0.0.1`. Lab controls check the supervised runtime PID,
-listener ownership and QEMU name. This is local developer tooling, not an
-authenticated multi-user service. Do not expose the port to other machines
-or untrusted local users. Profiles and disk backing chains must be trusted;
-selecting a runtime executable is not a sandbox.
+QMP uses an AF_UNIX filesystem socket in the lab's private `control`
+directory. There is no TCP listener. The directory ACL grants access only
+to the owning Windows user, SYSTEM and Administrators. Startup checks that
+this ACL has not been broadened; the client also checks the server PID
+reported by Windows before sending QMP commands.
+
+The `qmp_socket` path must fit within 107 UTF-8 bytes. Choose a shorter lab
+name or repository path if necessary. Existing regular files at that path
+are rejected, not overwritten. Standalone profile authors must provide a
+private control directory too. The old experimental `qmp_port` key is
+rejected rather than silently retaining an unauthenticated TCP endpoint.
+
+Same-user processes and administrators remain trusted. Profiles and disk
+backing chains must also be trusted; selecting a runtime executable is not
+a sandbox.
+
+The Windows-only `tests/qemu_transport.ps1 -QemuExecutable <path>` exercises
+the pinned runtime without a guest disk: authorized QMP, wrong-peer
+rejection, OS-enforced ACL denial, recovery after ACL restoration and the
+absence of TCP listeners.
 
 Next is configurable identity and accelerated graphics in the same
 backend. Looking Glass B7 is a reference for the future display/input
