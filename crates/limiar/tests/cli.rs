@@ -408,3 +408,15 @@ fn gpu_pv_probe_requires_explicit_experimental_flag_before_accessing_hardware() 
     assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("--experimental"));
 }
+#[test]
+fn graphics_demo_rejects_unbounded_or_missing_arguments_before_accessing_hardware() {
+    for arguments in [
+        vec!["gpu", "demo"],
+        vec!["gpu", "demo", "--adapter", "0", "--seconds", "0"],
+        vec!["gpu", "demo", "--adapter", "0", "--seconds", "301"],
+    ] {
+        let result = cli(&arguments);
+        assert!(!result.status.success());
+        assert!(result.stdout.is_empty());
+    }
+}

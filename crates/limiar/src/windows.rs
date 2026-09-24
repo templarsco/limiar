@@ -4,7 +4,8 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 use windows::Win32::Graphics::Direct3D::{
-    D3D_DRIVER_TYPE_UNKNOWN, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1,
+    D3D_DRIVER_TYPE_UNKNOWN, D3D_FEATURE_LEVEL, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_10_1,
+    D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_11_1,
 };
 use windows::Win32::Graphics::Direct3D11::*;
 use windows::Win32::Graphics::Dxgi::Common::{DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_SAMPLE_DESC};
@@ -24,7 +25,14 @@ pub(crate) fn system_directory() -> Result<PathBuf> {
     Ok(PathBuf::from(String::from_utf16(&path[..length])?))
 }
 
-fn enumerate() -> Result<Vec<(IDXGIAdapter1, Adapter)>> {
+pub(crate) const FEATURE_LEVELS: [D3D_FEATURE_LEVEL; 4] = [
+    D3D_FEATURE_LEVEL_11_1,
+    D3D_FEATURE_LEVEL_11_0,
+    D3D_FEATURE_LEVEL_10_1,
+    D3D_FEATURE_LEVEL_10_0,
+];
+
+pub(crate) fn enumerate() -> Result<Vec<(IDXGIAdapter1, Adapter)>> {
     let factory: IDXGIFactory1 = unsafe { CreateDXGIFactory1()? };
     let mut result = Vec::new();
     for index in 0..128 {
@@ -58,6 +66,10 @@ fn enumerate() -> Result<Vec<(IDXGIAdapter1, Adapter)>> {
 
 pub fn adapters() -> Result<Vec<Adapter>> {
     Ok(enumerate()?.into_iter().map(|(_, info)| info).collect())
+}
+
+pub fn gpu_demo(selector: &str, seconds: u16) -> Result<serde_json::Value> {
+    crate::presentation::run(selector, seconds)
 }
 
 pub fn gpu_pv_inventory() -> Result<crate::gpu_pv::Inventory> {
@@ -272,7 +284,7 @@ pub fn gpu_test(selector: &str, iterations: u16) -> Result<GpuTestReport> {
             D3D_DRIVER_TYPE_UNKNOWN,
             None,
             D3D11_CREATE_DEVICE_BGRA_SUPPORT,
-            Some(&[D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0]),
+            Some(&FEATURE_LEVELS),
             D3D11_SDK_VERSION,
             Some(&mut device),
             Some(&mut feature_level),

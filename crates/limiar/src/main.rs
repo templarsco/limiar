@@ -42,6 +42,13 @@ enum Commands {
 #[derive(Subcommand)]
 enum GpuCommands {
     List,
+    /// Present an animated 3D scene on an explicit hardware adapter.
+    Demo {
+        #[arg(long, help = "DXGI index or an unambiguous hardware adapter name")]
+        adapter: String,
+        #[arg(long, default_value_t = 20, value_parser = clap::value_parser!(u16).range(1..=300))]
+        seconds: u16,
+    },
     Test {
         #[arg(long, help = "DXGI index or an unambiguous hardware adapter name")]
         adapter: String,
@@ -182,6 +189,9 @@ fn dispatch(command: Commands) -> Result<(Value, bool)> {
     match command {
         Commands::Doctor => Ok((serde_json::to_value(platform::doctor()?)?, true)),
         Commands::Gpu { command } => match command {
+            GpuCommands::Demo { adapter, seconds } => {
+                Ok((platform::gpu_demo(&adapter, seconds)?, true))
+            }
             GpuCommands::Pv { command } => dispatch_gpu_pv(command),
             GpuCommands::List => Ok((
                 serde_json::json!({"schema_version": 1, "adapters": platform::adapters()?}),

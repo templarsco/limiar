@@ -2,7 +2,7 @@ name: Limiar
 
 on:
   push:
-    branches: [main, "codex/**"]
+    branches: [main, "codex/**", "mya/**"]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -37,6 +37,8 @@ jobs:
           pwsh -NoProfile -File ./tests/qemu_smbios.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pwsh -NoProfile -File ./tests/qemu_controls.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pwsh -NoProfile -File ./tests/graphics_guards.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: ISO builder dependencies
         run: |

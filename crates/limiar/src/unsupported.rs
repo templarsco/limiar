@@ -37,3 +37,6 @@ pub fn gpu_pv_probe(
 ) -> anyhow::Result<crate::gpu_pv::ProbeReport> {
     anyhow::bail!("HCS GPU-PV execution requires Windows")
 }
+pub fn gpu_demo(_selector: &str, _seconds: u16) -> anyhow::Result<serde_json::Value> {
+    anyhow::bail!("The D3D11 presentation probe requires Windows")
+}
