@@ -2,8 +2,24 @@
 
 [![Build](https://github.com/templarsco/limiar/actions/workflows/build.yml/badge.svg)](https://github.com/templarsco/limiar/actions/workflows/build.yml)
 
-**A capability-aware virtualization hub, starting with a Windows CLI and
-OpenVMM.** Formerly the PVGPU experimental GPU-remoting project.
+**A Windows-first virtualization project targeting QEMU-class machine
+control and GPU-accelerated desktop applications.** Formerly the PVGPU
+experimental GPU-remoting project.
+
+## Mission
+
+User-owned machine configuration is the reason for Limiar: firmware,
+SMBIOS and virtual hardware control, combined with useful graphics and
+application performance in the same VM. The Hub is the management surface
+for that platform, not the main differentiator.
+
+A new interface around unchanged native Hyper-V guests does not meet this
+goal. OpenVMM is the first implementation candidate, not a permanent limit
+on the product. Extending or replacing VMM, firmware or execution-provider
+components remains in scope when required by measured constraints.
+See the [core contract and next acceptance gate](docs/CORE-CONTRACT.md).
+
+## Current Implementation
 
 This is an early developer release, not a completed desktop hypervisor or a
 production-ready gaming VM. Version 0.4 adds a persistent **Windows 11
@@ -47,7 +63,8 @@ distinguishes guest GPU work from host-only diagnostics.
 
 ## PC Identity
 
-Identity is part of the VM profile, not a set of randomly changing values.
+Identity is a core requirement expressed through the VM profile, not a set
+of randomly changing values.
 The `limiar` preset presents **Limiar One / Limiar Desktop**, with a per-VM UUID
 and serial generated once on registration. Users can override every exposed
 field or select the `custom` preset. Existing profiles without an identity
@@ -62,6 +79,9 @@ the implementation status explicit:
 | SMBIOS 1: system | Manufacturer, product, version, serial, UUID, SKU, family | Configurable; all seven guest-verified on Linux |
 | SMBIOS 2: baseboard | Manufacturer, product, version, serial, asset tag | Not exposed by the pinned OpenVMM CLI |
 | SMBIOS 3: chassis | Manufacturer, type, version, serial, asset tag | Not exposed by the pinned OpenVMM CLI |
+| SMBIOS 4: processor | Socket, manufacturer, version, serial, asset and part information | Not implemented |
+| SMBIOS 9 / 11 / 41 | Slots, OEM strings and onboard devices | Not implemented |
+| SMBIOS binary entries | Explicit user-provided table data with validation | Not implemented |
 | CPU / CPUID / topology | Vendor, model, features, sockets, cores, threads | vCPU count configurable; arbitrary CPU identity is not implemented |
 | Memory / SMBIOS 16-17 | Capacity, slots, module identities, speed | Total VM memory configurable; DIMM identity is not implemented |
 | Firmware / clock | UEFI, RTC, Secure Boot, TPM, persistent variables | Windows lab has verified Secure Boot/vTPM; full firmware identity controls pending |
@@ -77,6 +97,9 @@ that old list from the new work.
 **SMBIOS customization does not make every observable property equivalent to
 physical hardware.** Unsupported fields are rejected, not silently ignored.
 OpenVMM UEFI only accepts Type 1 overrides; its BIOS self-description is not replaced.
+These are current implementation limits, not a reduction of the target
+coverage. The next core gate requires extending or revisiting the backend
+instead of dropping identity controls to obtain graphics.
 
 ```powershell
 .\scripts\Build-LinuxProbe.ps1
@@ -204,6 +227,7 @@ cargo test --workspace --all-targets --locked
 ```
 
 - [Complete development plan and status](docs/DEVELOPMENT-PLAN.md)
+- [Core mission, architecture choices and acceptance gate](docs/CORE-CONTRACT.md)
 - [Architecture and implementation boundaries](docs/ARCHITECTURE.md)
 - [Local validation: Windows 11 and RX 9070 XT](docs/validation/2026-09-23-foundation.md)
 - [Managed VM lifecycle validation](docs/validation/2026-09-24-managed-vms.md)

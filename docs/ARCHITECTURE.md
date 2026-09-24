@@ -1,6 +1,21 @@
 # Limiar Architecture
 
-## First Vertical Slice
+## Product Direction
+
+The [core contract](CORE-CONTRACT.md) makes QEMU-class machine control and
+accelerated application experience the main requirement. The future Hub is
+its management surface, not a substitute for controlling the machine.
+
+Architecture decisions separate management, guest machine construction and
+CPU/memory execution. OpenVMM is the first candidate. Firmware/VMM changes,
+alternative candidates and a separate execution-provider investigation are
+in scope when needed to meet the contract. Using an API is not the acceptance
+test; delivering the required machine behavior is.
+
+These are design requirements. The current runtime below has not achieved
+the combined configurable Windows-and-GPU target.
+
+## Current Vertical Slices
 
 ```text
 Limiar CLI
@@ -11,8 +26,10 @@ Limiar CLI
   `-- Windows lab scripts -> native Hyper-V -> persistent Windows guest
 ```
 
-The CLI is the first working surface for a future Hub. It is not a new
-hypervisor and does not replace or patch Hyper-V. The Nitro inspiration is
+The current CLI is not a new hypervisor and does not replace or patch
+Hyper-V. This describes the shipped implementation, not a permanent ban on
+lower-level work. The native Hyper-V Windows lab remains a validation fixture,
+not the chosen product architecture. The Nitro inspiration is
 separation of responsibilities and constrained device paths, not a claim to
 reproduce AWS hardware offload in software.
 
@@ -38,6 +55,11 @@ Unregister removes only the registry's fixed metadata filenames. Input paths
 are never used as deletion targets, and unknown files prevent removal.
 
 ## Runtime Boundary
+
+Upstream command-line restrictions describe the pinned runtime, not the
+maximum product scope. The next gate evaluates the VMM, firmware and graphics
+path together. Extending only the Limiar profile schema without implementing
+and verifying the corresponding guest behavior does not satisfy it.
 
 The upstream runtime lives under ignored `third_party/openvmm`. Its immutable
 revision, source repository, toolchain, and enabled build features are recorded
@@ -108,6 +130,9 @@ The OpenVMM identity and HCS graphics paths are not interchangeable.
 The [identity contract](IDENTITY.md) and [GPU-PV laboratory](GPU-PV.md) describe
 their separate capabilities. Dedicated device assignment remains future work
 with host display/recovery preflight and explicit device-specific rollback.
+The core gate requires graphics and identity in one candidate VM. It takes
+precedence over broad management/UI work, and may pull forward an alternative
+graphics transport or runtime when the present paths cannot be combined.
 
 ## Licensing And Legacy
 
