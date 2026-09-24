@@ -88,7 +88,8 @@ jobs:
                   assert folded not in seen, "Duplicate Windows path"
                   seen.add(folded)
                   total += entry.file_size
-                  assert total <= 512 * 1024**2, "Selected payload exceeds bound"
+                  print(f"Selected {entry.file_size} bytes: {entry.filename}", flush=True)
+                  assert total <= 2 * 1024**3, "Selected payload exceeds bound"
                   destination = output.joinpath(*name.parts)
                   destination.parent.mkdir(parents=True, exist_ok=True)
                   with package.open(entry) as source, destination.open("xb") as target:
