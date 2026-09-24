@@ -5,6 +5,7 @@
 /target/
 /third_party/
 /.limiar/
+/AGENTS.md
 
 # C/C++ build artifacts
 *.o

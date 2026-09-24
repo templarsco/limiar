@@ -4,7 +4,7 @@ use std::fs;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct VmConfig {
     pub schema_version: u32,
@@ -17,13 +17,13 @@ pub struct VmConfig {
     pub verification: Verification,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Runtime {
     pub executable: PathBuf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Boot {
     LinuxDirect {
@@ -44,7 +44,7 @@ fn default_read_only() -> bool {
     true
 }
 
-#[derive(Debug, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Verification {
     pub serial_marker: Option<String>,
@@ -73,28 +73,25 @@ impl VmConfig {
     pub fn parse(text: &str) -> Result<Self> {
         ensure!(text.len() <= 65_536, "profile exceeds 64 KiB");
         let config: Self = toml::from_str(text).context("invalid VM profile")?;
-        ensure!(config.schema_version == 1, "unsupported schema_version");
-        ensure!((1..=64).contains(&config.cpus), "cpus must be 1..64");
+        config.validate()?;
+        Ok(config)
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        ensure!(self.schema_version == 1, "unsupported schema_version");
+        ensure!((1..=64).contains(&self.cpus), "cpus must be 1..64");
         ensure!(
-            (128..=262_144).contains(&config.memory_mib),
+            (128..=262_144).contains(&self.memory_mib),
             "memory_mib must be 128..262144"
         );
-        ensure!(
-            (1..=48).contains(&config.name.len())
-                && config.name.as_bytes()[0].is_ascii_alphanumeric()
-                && config
-                    .name
-                    .bytes()
-                    .all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c)),
-            "name must start with a letter/digit and contain only ASCII letters, digits, -, _, ."
-        );
-        if let Some(marker) = &config.verification.serial_marker {
+        validate_name(&self.name)?;
+        if let Some(marker) = &self.verification.serial_marker {
             ensure!(
                 !marker.trim().is_empty() && marker.len() <= 512 && !marker.contains('\0'),
                 "serial_marker must contain 1..512 non-NUL bytes"
             );
         }
-        Ok(config)
+        Ok(())
     }
 
     pub fn load(path: &Path) -> Result<(Self, PathBuf)> {
@@ -113,6 +110,7 @@ impl VmConfig {
     }
 
     pub fn plan(&self, base: &Path) -> Result<LaunchPlan> {
+        self.validate()?;
         let mut inputs = Vec::new();
         let executable = input_path(base, &self.runtime.executable, "runtime", &mut inputs)?;
         let mut arguments = vec![
@@ -183,6 +181,58 @@ impl VmConfig {
             gpu_assignment: false,
         })
     }
+
+    pub fn resolved(&self, base: &Path) -> Result<Self> {
+        self.validate()?;
+        ensure!(base.is_absolute(), "profile base must be absolute");
+        let resolve = |path: &Path| {
+            if path.is_absolute() {
+                path.to_owned()
+            } else {
+                base.join(path)
+            }
+        };
+        let mut config = self.clone();
+        config.runtime.executable = resolve(&config.runtime.executable);
+        match &mut config.boot {
+            Boot::LinuxDirect { kernel, initrd, .. } => {
+                *kernel = resolve(kernel);
+                *initrd = resolve(initrd);
+            }
+            Boot::Uefi { firmware, disk, .. } => {
+                *firmware = resolve(firmware);
+                *disk = resolve(disk);
+            }
+        }
+        config.plan(base)?;
+        Ok(config)
+    }
+}
+
+pub fn validate_name(name: &str) -> Result<()> {
+    ensure!(
+        (1..=48).contains(&name.len())
+            && name.as_bytes()[0].is_ascii_alphanumeric()
+            && name
+                .bytes()
+                .all(|c| c.is_ascii_alphanumeric() || b"-_.".contains(&c))
+            && !name.ends_with('.'),
+        "name must start with a letter/digit, contain only ASCII letters, digits, -, _, . and not end in ."
+    );
+    let stem = name
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    let reserved = [
+        "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
+        "COM9", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+    ];
+    ensure!(
+        !reserved.contains(&stem.as_str()),
+        "name is reserved by Windows"
+    );
+    Ok(())
 }
 
 fn path_arg(path: &Path) -> Result<String> {

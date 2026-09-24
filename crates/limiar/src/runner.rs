@@ -1,6 +1,6 @@
 use crate::config::LaunchPlan;
 use anyhow::{Context, Result, ensure};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -16,18 +16,29 @@ pub enum Mode {
     Smoke,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct RunReport {
     pub schema_version: u32,
     pub name: String,
     pub success: bool,
-    pub stop_reason: &'static str,
+    pub stop_reason: String,
     pub exit_code: Option<i32>,
     pub marker_seen: bool,
     pub elapsed_ms: u128,
     pub stdout_log: PathBuf,
     pub stderr_log: PathBuf,
     pub gpu_assignment: bool,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum RunEvent {
+    Started(u32),
+    MarkerSeen,
+}
+
+pub struct RunControl<'a> {
+    pub notify: &'a dyn Fn(RunEvent) -> Result<()>,
+    pub stop_requested: &'a dyn Fn() -> Result<bool>,
 }
 
 struct ManagedChild {
@@ -116,6 +127,16 @@ fn transcript(stdout: &Path, stderr: &Path) -> Result<Option<String>> {
 }
 
 pub fn execute(plan: &LaunchPlan, mode: Mode, timeout: Duration, logs: &Path) -> Result<RunReport> {
+    execute_controlled(plan, mode, timeout, logs, None)
+}
+
+pub fn execute_controlled(
+    plan: &LaunchPlan,
+    mode: Mode,
+    timeout: Duration,
+    logs: &Path,
+    control: Option<&RunControl<'_>>,
+) -> Result<RunReport> {
     ensure!(plan.ready, "one or more required input files are missing");
     ensure!(!plan.gpu_assignment, "device assignment is not implemented");
     ensure!(!timeout.is_zero(), "timeout must be positive");
@@ -139,6 +160,9 @@ pub fn execute(plan: &LaunchPlan, mode: Mode, timeout: Duration, logs: &Path) ->
         .stdout(Stdio::from(File::create(&stdout_log)?))
         .stderr(Stdio::from(File::create(&stderr_log)?));
     let mut process = spawn(command)?;
+    if let Some(control) = control {
+        (control.notify)(RunEvent::Started(process.child.id()))?;
+    }
     let start = Instant::now();
     let mut marker_seen = false;
     let mut marker_time = None;
@@ -150,6 +174,9 @@ pub fn execute(plan: &LaunchPlan, mode: Mode, timeout: Duration, logs: &Path) ->
             marker_seen |= text.contains(marker);
             if marker_seen && marker_time.is_none() {
                 marker_time = Some(Instant::now());
+                if let Some(control) = control {
+                    (control.notify)(RunEvent::MarkerSeen)?;
+                }
             }
         }
         if text.contains("Kernel panic - not syncing") {
@@ -178,6 +205,11 @@ pub fn execute(plan: &LaunchPlan, mode: Mode, timeout: Duration, logs: &Path) ->
                 status.code(),
             );
         }
+        if let Some(control) = control
+            && (control.stop_requested)()?
+        {
+            break (true, "stop_requested", None);
+        }
         if mode == Mode::Smoke
             && marker_time.is_some_and(|time| time.elapsed() >= Duration::from_secs(2))
         {
@@ -193,7 +225,7 @@ pub fn execute(plan: &LaunchPlan, mode: Mode, timeout: Duration, logs: &Path) ->
         schema_version: 1,
         name: plan.name.clone(),
         success,
-        stop_reason,
+        stop_reason: stop_reason.to_owned(),
         exit_code,
         marker_seen,
         elapsed_ms: start.elapsed().as_millis(),
@@ -316,5 +348,67 @@ mod tests {
     #[ignore = "spawned only by the runner panic-detection test"]
     fn panic_fixture() {
         println!("Kernel panic - not syncing");
+    }
+
+    #[test]
+    fn controller_stop_reaps_only_the_owned_runtime() {
+        let logs = tempfile::tempdir().unwrap();
+        let mut plan = fixture();
+        plan.arguments = vec![
+            "--ignored".into(),
+            "--exact".into(),
+            "runner::tests::sleep_fixture".into(),
+        ];
+        let observed_pid = std::cell::Cell::new(0_u32);
+        let notify = |event| {
+            if let RunEvent::Started(pid) = event {
+                observed_pid.set(pid);
+            }
+            Ok(())
+        };
+        let stop_requested = || Ok(true);
+        let control = RunControl {
+            notify: &notify,
+            stop_requested: &stop_requested,
+        };
+        let report = execute_controlled(
+            &plan,
+            Mode::Run,
+            Duration::from_secs(5),
+            logs.path(),
+            Some(&control),
+        )
+        .unwrap();
+        assert!(observed_pid.get() > 0);
+        assert!(report.success);
+        assert_eq!(report.stop_reason, "stop_requested");
+        assert!(report.elapsed_ms < 5000);
+    }
+
+    #[test]
+    fn notification_failure_still_reaps_the_runtime() {
+        let logs = tempfile::tempdir().unwrap();
+        let mut plan = fixture();
+        plan.arguments = vec![
+            "--ignored".into(),
+            "--exact".into(),
+            "runner::tests::sleep_fixture".into(),
+        ];
+        let notify = |_| anyhow::bail!("state write failed");
+        let stop_requested = || Ok(false);
+        let control = RunControl {
+            notify: &notify,
+            stop_requested: &stop_requested,
+        };
+        let start = Instant::now();
+        let result = execute_controlled(
+            &plan,
+            Mode::Run,
+            Duration::from_secs(5),
+            logs.path(),
+            Some(&control),
+        );
+        assert!(result.is_err());
+        assert!(start.elapsed() < Duration::from_secs(5));
     }
 }

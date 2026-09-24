@@ -1,4 +1,5 @@
 pub mod config;
+pub mod registry;
 pub mod report;
 pub mod runner;
 
