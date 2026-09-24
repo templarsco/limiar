@@ -17,23 +17,42 @@ foreach ($bad in @("bad`nargument", "bad`rargument", "bad`0argument")) {
     try { [void](ConvertTo-LimiarWindowsArgument $bad) } catch { $rejected = $true }
     Assert-Equal $rejected $true
 }
-function Get-Process {
-    param($Id, $ErrorAction)
-    return [pscustomobject]@{Id=$Id;Path=$script:processPath}
+$module = Get-Module Lab.Common
+$processMock = @{Path='qemu.exe';Calls=0}
+& $module {
+    param($State)
+    $script:LimiarProcessMock = $State
+    function script:Get-Process {
+        [CmdletBinding()]
+        param($Id)
+        $script:LimiarProcessMock.Calls++
+        return [pscustomobject]@{Id=$Id;Path=$script:LimiarProcessMock.Path}
+    }
+} $processMock
+try {
+    $lab = [pscustomobject]@{Record=@{runtime_path='qemu.exe'}}
+    $status = @{supervisor_active=$true;state='running';last_run=@{runtime_pid=321}}
+    Assert-LimiarQmpOwner $lab $status
+    $assertions++
+    Assert-Equal $processMock.Calls 1
+    $processMock.Path = 'another-program.exe'
+    $rejected = $false
+    try { Assert-LimiarQmpOwner $lab $status }
+    catch { $rejected = $_.Exception.Message -eq 'Unexpected supervised runtime executable' }
+    Assert-Equal $rejected $true
+    Assert-Equal $processMock.Calls 2
+    $status.supervisor_active = $false
+    $rejected = $false
+    try { Assert-LimiarQmpOwner $lab $status } catch { $rejected = $true }
+    Assert-Equal $rejected $true
+    Assert-Equal $processMock.Calls 2
+} finally {
+    & $module {
+        Remove-Item Function:Get-Process -ErrorAction Stop
+        Remove-Variable LimiarProcessMock -Scope Script -ErrorAction Stop
+    }
 }
-$lab = [pscustomobject]@{Record=@{runtime_path='qemu.exe'}}
-$status = @{supervisor_active=$true;state='running';last_run=@{runtime_pid=321}}
-$script:processPath = 'qemu.exe'
-Assert-LimiarQmpOwner $lab $status
-$assertions++
-$script:processPath = 'another-program.exe'
-$rejected = $false
-try { Assert-LimiarQmpOwner $lab $status } catch { $rejected = $true }
-Assert-Equal $rejected $true
-$status.supervisor_active = $false
-$rejected = $false
-try { Assert-LimiarQmpOwner $lab $status } catch { $rejected = $true }
-Assert-Equal $rejected $true
+Assert-Equal (& $module { (Get-Command Get-Process).CommandType.ToString() }) 'Cmdlet'
 function Get-CimInstance {
     param($ClassName)
     return [pscustomobject]@{UUID='00112233-4455-6677-8899-aabbccddeeff'}
