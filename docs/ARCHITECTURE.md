@@ -15,6 +15,27 @@ hypervisor and does not replace or patch Hyper-V. The Nitro inspiration is
 separation of responsibilities and constrained device paths, not a claim to
 reproduce AWS hardware offload in software.
 
+## Managed Lifecycle
+
+Version 0.2 adds a local registry of resolved configuration snapshots. Metadata
+uses versioned JSON and atomic replacement. A short-lived registry lock protects
+metadata mutations; a separate, long-lived per-VM lease identifies the active
+supervisor. Other operations try that lease without waiting while holding the
+registry lock.
+
+The foreground supervisor owns the OpenVMM process tree. Stop requests carry
+the active run identifier through a local control file. Persisted PIDs are
+informational and are never used to kill a process. A running record without a
+held lease is reported as interrupted.
+
+Forced stop, guest boot verification, and graceful shutdown are separate
+outcomes. `stop_requested` acknowledges runtime termination, not a clean guest
+shutdown. The registry is tied to its creating host OS and is not an
+authenticated multi-user API or a cross-host coordination mechanism.
+
+Unregister removes only the registry's fixed metadata filenames. Input paths
+are never used as deletion targets, and unknown files prevent removal.
+
 ## Runtime Boundary
 
 The upstream runtime lives under ignored `third_party/openvmm`. Its immutable

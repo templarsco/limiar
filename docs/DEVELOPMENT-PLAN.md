@@ -53,7 +53,18 @@ Native GPU success must never be presented as guest GPU success.
 
 ## M1: Reproducible Guest Lifecycle
 
-Status: planned.
+Status: in progress. The 0.2 development slice adds managed profile snapshots
+and foreground VM supervision; it does not complete every item in this phase.
+
+- [x] Persistent profile registry, case-insensitive names, and immutable input-path snapshots.
+- [x] List/show/preview/status and stopped-profile updates with revision tracking.
+- [x] Exclusive supervisor leases, stale-state detection, and run-specific stop requests.
+- [x] Metadata-only unregister; no VM image deletion.
+- [x] Unit and CLI tests for registry safety and process control.
+- [x] Real Linux start/stop/restart validation through the managed commands.
+- [ ] Hosted Windows/Ubuntu CI and CodeQL for this development slice.
+- [ ] Guest-requested graceful shutdown and persistent disk management.
+- [ ] Windows 11 installation/boot, Secure Boot, and vTPM validation.
 
 Deliverables:
 - Linux direct-boot and UEFI profiles with immutable input image hashes.
