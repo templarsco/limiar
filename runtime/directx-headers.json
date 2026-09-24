@@ -1,0 +1,6 @@
+{
+  "repository": "https://github.com/microsoft/DirectX-Headers.git",
+  "revision": "adbd6f3ba40795c46a8d0f33af00bcb57ff0f0a4",
+  "license": "MIT",
+  "scope": "Optional Linux D3D12 guest diagnostic build only"
+}

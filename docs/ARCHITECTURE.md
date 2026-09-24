@@ -6,8 +6,8 @@
 Limiar CLI
   |-- host inventory + WHP capability query (read-only)
   |-- explicit DXGI adapter -> bounded native D3D11 readback test
-  `-- strict TOML profile -> launch plan -> supervised OpenVMM process
-                                               `-- WHP -> guest
+  |-- strict TOML + persisted identity -> supervised OpenVMM -> WHP -> guest
+  `-- explicit GPU-PV laboratory -> HCS -> disposable Linux guest
 ```
 
 The CLI is the first working surface for a future Hub. It is not a new
@@ -67,9 +67,23 @@ This establishes that the selected host adapter can perform this D3D11
 workload. It does not establish passthrough, GPU-P, Vulkan/DX12 support,
 game compatibility, sustained performance, or guest acceleration.
 
-Device assignment will be a separate, privileged operation with preflight,
-exact device identity, host-display confirmation, and rollback. It is
-intentionally absent from this initial CLI.
+Version 0.3 adds a separate HCS GPU-PV laboratory. It queries the exact adapter,
+creates an owned transient compute system, starts it, then requests the GPU
+partition. It never disables/dismounts a GPU, attaches a host physical disk or
+falls back to another adapter. No network or host directory sharing is enabled.
+Native HCS APIs are loaded from System32 only when requested.
+
+The serial protocol acknowledges the guest's report before allowing power-off.
+Rendering verification requires the matching PCI vendor/device and all 4096
+pixels from a D3D12 clear/copy/readback, not merely a boot marker. HCS must
+report `GracefulExit`; cleanup is checked by querying the fresh compute-system
+ID after the owned handle closes. Termination-on-last-handle-close provides
+process-exit cleanup as well.
+
+The OpenVMM identity and HCS graphics paths are not interchangeable.
+The [identity contract](IDENTITY.md) and [GPU-PV laboratory](GPU-PV.md) describe
+their separate capabilities. Dedicated device assignment remains future work
+with host display/recovery preflight and explicit device-specific rollback.
 
 ## Licensing And Legacy
 

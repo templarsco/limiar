@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand};
-use limiar::{config::VmConfig, platform, registry::Registry, runner};
+use limiar::{config::VmConfig, gpu_pv, identity, platform, registry::Registry, runner};
 use serde_json::Value;
 use std::fs::{self, File, OpenOptions};
 use std::io::Write;
@@ -25,7 +25,7 @@ struct Cli {
 enum Commands {
     /// Read-only host, WHP, and GPU inventory.
     Doctor,
-    /// Native GPU diagnostics. These do not assign devices to VMs.
+    /// Hardware diagnostics and an explicitly enabled experimental GPU-PV lab.
     Gpu {
         #[command(subcommand)]
         command: GpuCommands,
@@ -47,6 +47,52 @@ enum GpuCommands {
         adapter: String,
         #[arg(long, default_value_t = 3, value_parser = clap::value_parser!(u16).range(1..=32))]
         iterations: u16,
+    },
+    /// Shared GPU inventory and a disposable HCS Linux probe.
+    Pv {
+        #[command(subcommand)]
+        command: GpuPvCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum GpuPvCommands {
+    /// Query advertised partitionable GPUs without changing the host.
+    List,
+    /// Preview an exact-adapter HCS request. Creates no VM.
+    Plan {
+        #[arg(long)]
+        adapter: String,
+        #[arg(long)]
+        kernel: PathBuf,
+        #[arg(long)]
+        initrd: PathBuf,
+        #[arg(long)]
+        verify_rendering: bool,
+    },
+    /// Run a disposable HCS GPU-PV probe, optionally verifying D3D12 pixels.
+    Probe {
+        #[arg(
+            long,
+            required = true,
+            help = "Acknowledge experimental host GPU sharing"
+        )]
+        experimental: bool,
+        #[arg(
+            long,
+            help = "Require guest D3D12 pixel readback; needs a GPU-enabled probe initrd"
+        )]
+        verify_rendering: bool,
+        #[arg(long)]
+        adapter: String,
+        #[arg(long)]
+        kernel: PathBuf,
+        #[arg(long)]
+        initrd: PathBuf,
+        #[arg(long, default_value_t = 60, value_parser = clap::value_parser!(u64).range(1..=300))]
+        timeout_seconds: u64,
+        #[arg(long, default_value = ".limiar/runs")]
+        logs: PathBuf,
     },
 }
 
@@ -74,6 +120,14 @@ enum VmCommands {
     /// Inspect the supervisor state; does not infer liveness from a PID.
     Status {
         name: String,
+    },
+    /// Boot a registered Linux probe, then compare its DMI report with the profile.
+    VerifyIdentity {
+        name: String,
+        #[arg(long, default_value_t = 90, value_parser = clap::value_parser!(u64).range(1..=3600))]
+        timeout_seconds: u64,
+        #[arg(long, default_value = ".limiar/runs")]
+        logs: PathBuf,
     },
     /// Start a registered VM under foreground supervision.
     Start {
@@ -120,6 +174,7 @@ fn dispatch(command: Commands) -> Result<(Value, bool)> {
     match command {
         Commands::Doctor => Ok((serde_json::to_value(platform::doctor()?)?, true)),
         Commands::Gpu { command } => match command {
+            GpuCommands::Pv { command } => dispatch_gpu_pv(command),
             GpuCommands::List => Ok((
                 serde_json::json!({"schema_version": 1, "adapters": platform::adapters()?}),
                 true,
@@ -133,6 +188,47 @@ fn dispatch(command: Commands) -> Result<(Value, bool)> {
             )),
         },
         Commands::Vm { registry, command } => dispatch_vm(command, &registry),
+    }
+}
+
+fn dispatch_gpu_pv(command: GpuPvCommands) -> Result<(Value, bool)> {
+    match command {
+        GpuPvCommands::List => {
+            let inventory = platform::gpu_pv_inventory()?;
+            let queried = inventory.status == "queried";
+            Ok((serde_json::to_value(inventory)?, queried))
+        }
+        GpuPvCommands::Plan {
+            adapter,
+            kernel,
+            initrd,
+            verify_rendering,
+        } => {
+            let inventory = platform::gpu_pv_inventory()?;
+            let adapter = gpu_pv::select(&inventory, &adapter)?;
+            Ok((
+                serde_json::to_value(gpu_pv::plan(adapter, &kernel, &initrd, verify_rendering)?)?,
+                true,
+            ))
+        }
+        GpuPvCommands::Probe {
+            experimental,
+            verify_rendering,
+            adapter,
+            kernel,
+            initrd,
+            timeout_seconds,
+            logs,
+        } => {
+            ensure!(experimental, "GPU-PV probe requires --experimental");
+            let inventory = platform::gpu_pv_inventory()?;
+            let adapter = gpu_pv::select(&inventory, &adapter)?;
+            let plan = gpu_pv::plan(adapter, &kernel, &initrd, verify_rendering)?;
+            let report =
+                platform::gpu_pv_probe(&plan, Duration::from_secs(timeout_seconds), &logs)?;
+            let success = report.success;
+            Ok((serde_json::to_value(report)?, success))
+        }
     }
 }
 
@@ -194,6 +290,47 @@ fn dispatch_vm(command: VmCommands, root: &Path) -> Result<(Value, bool)> {
             serde_json::to_value(Registry::open(root)?.status(&name)?)?,
             true,
         )),
+        VmCommands::VerifyIdentity {
+            name,
+            timeout_seconds,
+            logs,
+        } => {
+            ensure!(cfg!(windows), "WHP execution currently requires Windows");
+            let registry = Registry::open(root)?;
+            let plan = registry.preview(&name)?;
+            let expected = plan
+                .identity
+                .as_ref()
+                .context("profile has no identity configuration")?;
+            ensure!(
+                !expected.requires_registration,
+                "registered identity is incomplete"
+            );
+            let run = registry.start(
+                &name,
+                runner::Mode::Run,
+                Duration::from_secs(timeout_seconds),
+                &logs,
+            )?;
+            let transcript = runner::read_transcript(&run.stdout_log, &run.stderr_log)?
+                .context("guest transcript exceeds the log limit")?;
+            let verification = run
+                .expected_dmi
+                .as_ref()
+                .context("the launched profile had no identity configuration")
+                .and_then(|expected| identity::verify(expected, &transcript));
+            let success = run.success && verification.as_ref().is_ok_and(|result| result.passed);
+            let identity = match verification {
+                Ok(result) => serde_json::to_value(result)?,
+                Err(error) => serde_json::json!({"passed": false, "error": format!("{error:#}")}),
+            };
+            Ok((
+                serde_json::json!({
+                    "schema_version": 1, "success": success, "run": run, "identity": identity
+                }),
+                success,
+            ))
+        }
         VmCommands::Start {
             name,
             timeout_seconds,

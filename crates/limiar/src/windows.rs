@@ -14,7 +14,7 @@ use windows::Win32::Graphics::Dxgi::{
 };
 use windows::Win32::System::SystemInformation::GetSystemDirectoryW;
 
-fn system_directory() -> Result<PathBuf> {
+pub(crate) fn system_directory() -> Result<PathBuf> {
     let mut path = [0_u16; 32768];
     let length = unsafe { GetSystemDirectoryW(Some(&mut path)) } as usize;
     ensure!(
@@ -54,6 +54,35 @@ fn enumerate() -> Result<Vec<(IDXGIAdapter1, Adapter)>> {
 
 pub fn adapters() -> Result<Vec<Adapter>> {
     Ok(enumerate()?.into_iter().map(|(_, info)| info).collect())
+}
+
+pub fn gpu_pv_inventory() -> Result<crate::gpu_pv::Inventory> {
+    use std::os::windows::process::CommandExt;
+    let powershell = system_directory()?.join("WindowsPowerShell/v1.0/powershell.exe");
+    let output = Command::new(powershell)
+        .args([
+            "-NoLogo",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            include_str!("../../../scripts/gpu-pv-inventory.ps1"),
+        ])
+        .creation_flags(0x08000000)
+        .output()?;
+    ensure!(
+        output.status.success(),
+        "GPU-PV inventory process failed: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).context("invalid GPU-PV inventory JSON")
+}
+
+pub fn gpu_pv_probe(
+    plan: &crate::gpu_pv::ProbePlan,
+    timeout: std::time::Duration,
+    logs: &std::path::Path,
+) -> Result<crate::gpu_pv::ProbeReport> {
+    crate::hcs::probe(plan, timeout, logs)
 }
 
 fn display_routing() -> Result<serde_json::Value> {
@@ -196,7 +225,7 @@ pub fn doctor() -> Result<DoctorReport> {
         whp,
         gpu_assignment: Capability {
             status: "not_validated",
-            detail: "DDA's documented host requirement is Windows Server. Windows client vPCI is an experiment; this CLI performs no assignment.".into(),
+            detail: "Dedicated assignment is not implemented. DDA's documented host requirement is Windows Server; shared GPU-PV has a separate experimental probe.".into(),
         },
         adapters: adapters()?,
         display_routing,

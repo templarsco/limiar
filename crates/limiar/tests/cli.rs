@@ -238,3 +238,100 @@ fn managed_stop_requires_explicit_force_and_is_idempotent_when_stopped() {
     assert_eq!(status["supervisor_active"], false);
     assert_eq!(status["state"], "registered");
 }
+
+#[test]
+fn identity_registration_materializes_defaults_and_update_keeps_identifiers() {
+    let directory = tempfile::tempdir().unwrap();
+    let profile = write_profile(directory.path());
+    let text = format!(
+        "{}\n[identity]\npreset = \"limiar\"\n",
+        fs::read_to_string(&profile).unwrap()
+    );
+    fs::write(&profile, &text).unwrap();
+    let pending = cli(&["vm", "plan", profile.to_str().unwrap()]);
+    assert!(!pending.status.success());
+    let plan: Value = serde_json::from_slice(&pending.stdout).unwrap();
+    assert_eq!(plan["identity"]["requires_registration"], true);
+    let registry = directory.path().join("registry");
+    let registry = registry.to_str().unwrap();
+    let registration = cli(&[
+        "vm",
+        "register",
+        profile.to_str().unwrap(),
+        "--registry",
+        registry,
+    ]);
+    assert!(registration.status.success(), "{registration:?}");
+    let record: Value = serde_json::from_slice(&registration.stdout).unwrap();
+    let original = &record["profile"]["identity"]["system"];
+    assert_eq!(original["manufacturer"], "Limiar");
+    assert_eq!(original["product"], "Limiar One");
+    assert!(original["uuid"].as_str().unwrap().len() == 36);
+    assert!(original["serial"].as_str().unwrap().starts_with("LMR-"));
+    let updated = cli(&[
+        "vm",
+        "update",
+        "cli-test",
+        profile.to_str().unwrap(),
+        "--registry",
+        registry,
+    ]);
+    assert!(updated.status.success(), "{updated:?}");
+    let record: Value = serde_json::from_slice(&updated.stdout).unwrap();
+    assert_eq!(&record["profile"]["identity"]["system"], original);
+    let preview = cli(&["vm", "preview", "cli-test", "--registry", registry]);
+    assert!(preview.status.success(), "{preview:?}");
+    let plan: Value = serde_json::from_slice(&preview.stdout).unwrap();
+    assert_eq!(plan["identity"]["requires_registration"], false);
+    assert_eq!(
+        plan["identity"]["expected_dmi"]["product_uuid"],
+        original["uuid"]
+    );
+    assert_eq!(
+        plan["identity"]["expected_dmi"]["product_serial"],
+        original["serial"]
+    );
+}
+
+#[test]
+fn unsupported_identity_fields_fail_before_registration() {
+    let directory = tempfile::tempdir().unwrap();
+    let profile = write_profile(directory.path());
+    let original = fs::read_to_string(&profile).unwrap();
+    for section in ["baseboard", "chassis", "cpuid", "acpi"] {
+        fs::write(
+            &profile,
+            format!("{original}\n[identity.{section}]\nvendor = \"Custom\"\n"),
+        )
+        .unwrap();
+        let registry = directory.path().join(section);
+        let output = cli(&[
+            "vm",
+            "register",
+            profile.to_str().unwrap(),
+            "--registry",
+            registry.to_str().unwrap(),
+        ]);
+        assert!(!output.status.success(), "{section}");
+        assert!(!registry.join("cli-test").exists());
+        let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert!(report["error"].as_str().unwrap().contains("unknown field"));
+    }
+}
+
+#[test]
+fn gpu_pv_probe_requires_explicit_experimental_flag_before_accessing_hardware() {
+    let output = cli(&[
+        "gpu",
+        "pv",
+        "probe",
+        "--adapter",
+        "RX",
+        "--kernel",
+        "kernel",
+        "--initrd",
+        "initrd",
+    ]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("--experimental"));
+}

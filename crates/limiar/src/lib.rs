@@ -1,7 +1,12 @@
 pub mod config;
+pub mod gpu_pv;
+pub mod identity;
 pub mod registry;
 pub mod report;
 pub mod runner;
+
+#[cfg(windows)]
+mod hcs;
 
 #[cfg(windows)]
 #[path = "windows.rs"]

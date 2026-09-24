@@ -155,6 +155,12 @@ fn validate_record(record: &VmRecord, name: &str) -> Result<()> {
     ensure!(record.schema_version == 1, "unsupported registry schema");
     ensure!(record.revision > 0, "invalid profile revision");
     record.profile.validate()?;
+    if let Some(identity) = &record.profile.identity {
+        ensure!(
+            identity.system.uuid.is_some() && identity.system.serial.is_some(),
+            "stored identity is missing its persistent UUID or serial"
+        );
+    }
     ensure!(
         record.name == record.profile.name && record.name.eq_ignore_ascii_case(name),
         "registry name does not match the stored profile"
@@ -287,7 +293,8 @@ impl Registry {
 
     pub fn register(&self, profile_path: &Path) -> Result<VmRecord> {
         let (profile, base) = VmConfig::load(profile_path)?;
-        let profile = profile.resolved(&base)?;
+        let mut profile = profile.resolved(&base)?;
+        profile.materialize_identity(None)?;
         let timestamp = now_ms()?;
         let record = VmRecord {
             schema_version: 1,
@@ -314,7 +321,7 @@ impl Registry {
 
     pub fn update(&self, name: &str, profile_path: &Path) -> Result<VmRecord> {
         let (profile, base) = VmConfig::load(profile_path)?;
-        let profile = profile.resolved(&base)?;
+        let mut profile = profile.resolved(&base)?;
         ensure!(
             profile.name.eq_ignore_ascii_case(name),
             "updated profile must keep the VM name"
@@ -324,6 +331,7 @@ impl Registry {
         let _lease = try_lease(&directory.join("run.lock"))?
             .context("VM is running; stop it before updating")?;
         let old = self.record_at(&directory, name)?;
+        profile.materialize_identity(Some(&old.profile))?;
         let record = VmRecord {
             schema_version: 1,
             name: profile.name.clone(),
@@ -637,6 +645,10 @@ mod tests {
             stdout_log: PathBuf::from("out"),
             stderr_log: PathBuf::from("err"),
             gpu_assignment: false,
+            expected_dmi: plan
+                .identity
+                .as_ref()
+                .map(|identity| identity.expected_dmi.clone()),
         }
     }
 

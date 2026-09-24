@@ -1,0 +1,33 @@
+schema_version = 1
+name = "custom-desktop"
+cpus = 4
+memory_mib = 1024
+
+[runtime]
+executable = "../third_party/openvmm/target/release/openvmm.exe"
+
+[boot]
+kind = "linux_direct"
+kernel = "../third_party/openvmm/.packages/underhill-deps-private/x64/vmlinux"
+initrd = "../.limiar/images/linux-probe.initrd"
+cmdline = "console=ttyS0 panic=-1 rdinit=/limiar/probe-init"
+
+[identity]
+preset = "custom"
+
+[identity.system]
+manufacturer = "Limiar Lab"
+product = "Custom Desktop"
+version = "2.4"
+sku = "LAB-DESKTOP"
+family = "Workstation"
+# UUID and serial are generated on registration, or can be explicitly set here.
+
+[identity.bios]
+vendor = "Lab Firmware"
+version = "3.7"
+date = "09/20/2026"
+release = "3.7"
+
+[verification]
+serial_marker = "LIMIAR_PROBE_READY"

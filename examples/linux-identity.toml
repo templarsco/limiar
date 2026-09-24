@@ -1,0 +1,36 @@
+schema_version = 1
+name = "limiar-one"
+cpus = 2
+memory_mib = 512
+
+[runtime]
+executable = "../third_party/openvmm/target/release/openvmm.exe"
+
+[boot]
+kind = "linux_direct"
+kernel = "../third_party/openvmm/.packages/underhill-deps-private/x64/vmlinux"
+initrd = "../.limiar/images/linux-probe.initrd"
+cmdline = "console=ttyS0 panic=-1 rdinit=/limiar/probe-init"
+
+[identity]
+preset = "limiar"
+
+# Omitted UUID and serial are generated once by `vm register`, then persisted.
+# Every supported field can be overridden, including with preset = "limiar".
+# [identity.system]
+# manufacturer = "My Workshop"
+# product = "Desktop One"
+# version = "1.0"
+# sku = "DESKTOP-01"
+# family = "Workstation"
+# serial = "MY-DESKTOP-01"
+# uuid = "64eec4d2-418b-4994-ab08-2a5b18526780"
+#
+# [identity.bios]
+# vendor = "My Workshop"
+# version = "1.2"
+# date = "09/24/2026"
+# release = "1.2"
+
+[verification]
+serial_marker = "LIMIAR_PROBE_READY"

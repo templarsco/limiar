@@ -28,6 +28,20 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
         run: cargo test --workspace --all-targets --locked
+      - name: Linux guest probe source checks
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          bash -n scripts/build-linux-probe.sh scripts/build-linux-gpu-probe.sh
+          sh -n guest/linux/probe-init.sh
+          headers="$RUNNER_TEMP/directx-headers"
+          git init "$headers"
+          git -C "$headers" remote add origin "$(jq -r .repository runtime/directx-headers.json)"
+          git -C "$headers" fetch --depth 1 origin "$(jq -r .revision runtime/directx-headers.json)"
+          git -C "$headers" checkout --detach FETCH_HEAD
+          g++ -std=c++17 -Wall -Wextra -Werror -fsyntax-only \
+            -isystem "$headers/include" -isystem "$headers/include/wsl/stubs" \
+            guest/linux/gpu-probe.cpp
       - name: Build
         run: cargo build --release --locked -p limiar
       - name: CLI smoke
