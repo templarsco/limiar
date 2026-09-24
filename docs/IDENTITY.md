@@ -1,9 +1,33 @@
 # VM Identity
 
-Limiar aims to provide coherent, user-owned PC profiles. A profile describes
-the machine being configured; it is not a promise that synthetic devices or
-the hypervisor disappear. Capabilities must be checked for each backend and
-boot method.
+User-owned PC identity and machine configuration are central to Limiar,
+not an optional cosmetic layer. The [core contract](CORE-CONTRACT.md)
+targets QEMU-class control together with accelerated applications in the
+same Windows guest.
+
+A profile describes the machine being configured; it is not a promise that
+synthetic devices or the hypervisor disappear. Capabilities must be checked
+for each backend and boot method. A current backend restriction is an
+implementation gap to investigate, not automatically a permanent product
+restriction.
+
+## QEMU Coverage Target
+
+The reference surface includes configurable SMBIOS Types 0, 1, 2, 3, 4, 9,
+11, 17 and 41, plus explicit binary entries. Track parity by field against
+a pinned QEMU revision and firmware configuration before claiming complete
+coverage. That baseline capture is still pending.
+
+System/baseboard/chassis identifiers, processor information, memory devices,
+slots, OEM strings and onboard devices belong in that coverage work.
+Binary input needs bounded parsing and structural validation; it is not a
+reason to accept malformed tables or arbitrary runtime commands.
+Resource-bearing fields must remain coherent with the actual machine.
+
+The implementation below is only a subset. Future fields are not accepted
+TOML keys until their generation and guest verification exist. CPU/CPUID,
+ACPI, PCI and graphics-driver behavior are separate parts of the machine
+contract; SMBIOS coverage alone does not complete it.
 
 ## Implemented Contract
 
@@ -67,6 +91,9 @@ The HCS probe does not consume OpenVMM profiles or their identity values.
 Combining full identity controls with shared graphics in one production VM
 requires more backend/firmware work. There is no automatic fallback that drops
 identity settings to make an unsupported backend start.
+The native Hyper-V lab cannot close this gap through a UI change. The core
+gate must extend or revise the machine/firmware path and verify the configured
+identity in the same Windows guest that performs the graphics workload.
 
 ## Historical And Future Inventory
 
@@ -106,6 +133,7 @@ reports contain per-VM identifiers and must be reviewed before publication.
 
 ## Upstream References
 
+- [QEMU configuration and SMBIOS reference](https://www.qemu.org/docs/master/system/invocation.html)
 - [Pinned OpenVMM SMBIOS CLI and loader restrictions](https://github.com/microsoft/openvmm/blob/f60e3d6a57ce5d0cfee48ead3bca5ce9908effba/openvmm/openvmm_entry/src/cli_args.rs)
 - [Linux direct-boot identity mapping](https://github.com/microsoft/openvmm/blob/f60e3d6a57ce5d0cfee48ead3bca5ce9908effba/openvmm/openvmm_core/src/worker/vm_loaders/linux.rs)
 - [UEFI identity mapping and explicit BIOS rejection](https://github.com/microsoft/openvmm/blob/f60e3d6a57ce5d0cfee48ead3bca5ce9908effba/openvmm/openvmm_core/src/worker/vm_loaders/uefi.rs)

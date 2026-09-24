@@ -7,8 +7,16 @@ product milestones remain planned.
 
 ## Product
 
-Limiar is a capability-aware hub for creating, running, and managing virtual
-machines. OpenVMM is the first execution backend, not the product identity.
+Limiar targets QEMU-class ownership of a configurable PC, with useful
+GPU-accelerated applications on a Windows host. Machine identity, firmware
+and virtual hardware control are the central mission. The Hub makes that
+platform practical to manage; a native Hyper-V management wrapper alone is
+not the product.
+
+OpenVMM is the first implementation candidate, not an architectural ceiling.
+The [core contract](CORE-CONTRACT.md) defines the required combined outcome
+and the criteria for extending, forking or replacing components, including
+the execution provider if necessary.
 The initial host is Windows 11 x64; the first shared GPU under test is an
 AMD Radeon RX 9070 XT. Windows, Linux, and FreeBSD are target guest families.
 macOS integration and custom console-style systems are later workstreams.
@@ -18,13 +26,21 @@ Each phase must produce evidence before its status changes to complete.
 
 ## Decisions
 
-- Start from upstream OpenVMM through a supervised process boundary.
+- Start from upstream OpenVMM through a supervised process boundary, but
+  evaluate it against the core contract rather than constraining the mission
+  to its existing CLI.
 - Prioritize shared GPU-PV so the host retains the GPU; dedicated assignment
-  follows later. HCS is the first experimental sharing path.
+  remains another delivery path. HCS is the first experimental sharing path,
+  not a required product management architecture.
 - Treat PC identity as user configuration, with coherent project defaults
   and persistent UUID/serial values. Do not silently drop unsupported fields.
 - OpenVMM identity and HCS GPU-PV are separate paths today; a combined
   Windows desktop VM is still an acceptance requirement, not a delivered feature.
+- Freeze the role of the native Hyper-V lab as a validation fixture. Do not
+  promote it to the final product merely by adding management/UI features.
+- Revise VMM, firmware or hypervisor choices when a demonstrated blocker
+  prevents the core result. A separate hypervisor is an available research
+  direction, not an already implemented feature or an automatic next step.
 - Pin the upstream revision and the Rust toolchain; do not silently track main.
 - Keep the legacy PVGPU sources in place, outside the new Cargo workspace.
 - Keep existing licenses and third-party notices. Licensing changes require a
@@ -35,6 +51,37 @@ Each phase must produce evidence before its status changes to complete.
 - Treat GPU passthrough on Windows client as an experiment, not a supported
   feature merely because an API or PowerShell command exists.
 - Do not promise universal game or anti-cheat compatibility.
+
+## Core Gate: Configurable Accelerated PC
+
+Status: product direction recorded September 24, 2026; runtime gate pending.
+This is the next priority. M0-M2 below preserve completed work and outstanding
+engineering tasks; their numbering does not put M3/M4 ahead of this gate.
+
+- [x] Make machine control and application experience the central product
+  contract, with management/UI subordinate to a viable runtime.
+- [ ] Pin and capture a QEMU reference configuration and its application
+  behavior on the Windows host.
+- [ ] Build a field-level coverage matrix, including the full reference
+  SMBIOS input surface, and identify the owner of every implementation gap.
+- [ ] Prove Windows UEFI boot with distinct custom BIOS/system/baseboard/chassis
+  profiles, persistence and guest-side value verification.
+- [ ] Add accelerated presented graphics to that same configurable VM.
+- [ ] Validate input/audio and a repeatable interactive application session;
+  Roblox is the first candidate, not yet a reproduced Limiar result.
+- [ ] Record native/guest performance under fixed settings and account for
+  host graphics continuity, frame times and recovery.
+- [ ] Publish a candidate go/no-go decision. Advance another VMM or execution
+  provider when necessary instead of declaring the existing lab sufficient.
+
+Exit criteria: one candidate demonstrates configurable Windows identity and
+accelerated interactive applications together, with its remaining coverage
+gaps explicit. Full QEMU-field parity remains a separate completion target;
+the first prototype must not be advertised as 100% coverage.
+
+Application compatibility, performance and stability are part of this gate.
+Broader product/UI work cannot substitute for it. Consult the
+[core contract](CORE-CONTRACT.md) for candidate paths and evidence rules.
 
 ## M0: Reproducible Foundation
 
@@ -120,6 +167,8 @@ attachment or `/dev/dxg` node alone does not satisfy graphics validation.
 ## M2b: Dedicated GPU Feasibility
 
 Status: planned; prerequisite is M0's host inventory.
+Pull this investigation forward if needed for the core candidate comparison;
+shared use remains the preferred user experience.
 
 1. Identify the exact GPU and all associated PCI functions.
 2. Check platform/OS support, IOMMU/ACS capability, firmware settings, BAR/MMIO
@@ -140,7 +189,7 @@ Linux host is an alternative experiment, not an automatic machine conversion.
 
 ## M3: VM Management Service
 
-Status: planned; requires a stable M1 lifecycle contract.
+Status: planned; requires the core gate and a stable M1 lifecycle contract.
 
 Deliverables: versioned local API; VM registry; job state machine; capabilities;
 image library; storage/network management; log/event streaming; permissions;
@@ -156,7 +205,8 @@ Do not use snapshots with passthrough until device state semantics are proven.
 
 ## M4: Desktop Hub
 
-Status: planned; build on the service API, not direct shell commands.
+Status: planned; requires the core gate. Build on the service API, not direct
+shell commands.
 
 Views: VM library; creation/import; hardware configuration; live console;
 jobs/logs; images/storage; networking; GPU capabilities; and diagnostics.
@@ -185,6 +235,8 @@ when a requested feature is unavailable.
 ## M6: Additional GPU Delivery Modes
 
 Status: research, not a commitment to a particular transport.
+Required transport experiments move into the core gate if the initial
+GPU-PV path cannot coexist with the configurable machine model.
 
 Extend the GPU-PV-first work with independently validated alternatives.
 Compare host-supported partitioning, dedicated assignment and API remoting. Prototype one narrow
