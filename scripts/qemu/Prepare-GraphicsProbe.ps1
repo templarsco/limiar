@@ -26,6 +26,9 @@ if (-not (Test-Path -LiteralPath $cli -PathType Leaf)) { throw 'Build the portab
 $profileHash = (Get-FileHash -LiteralPath $lab.Record.profile_path).Hash
 $profile = Get-Content -LiteralPath $lab.Record.profile_path -Raw | ConvertFrom-Json -AsHashtable
 if (-not $profile.identity.system.uuid) { throw 'A materialized guest UUID is required' }
+if ($profile.boot.graphics -ne 'virgl_experimental') {
+    throw 'Select graphics=virgl_experimental in this stopped VM profile before preparing its driver'
+}
 $id = [guid]::NewGuid().ToString('N')
 $payload = Join-Path $lab.Directory "graphics-$id"
 $driver = Join-Path $payload 'driver'

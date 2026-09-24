@@ -102,10 +102,22 @@ jobs:
           print(json.dumps({"source_sha256": digest.hexdigest(), "files": len(files), "bytes": total}))
           for item in files:
               print(item["path"])
+      - name: Compress the unchanged signed payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/virgl-driver/bundle"
+          cd "$RUNNER_TEMP/virgl-driver/payload"
+          7z a -t7z -mx=7 -m0=lzma2:d=128m -ms=on -mmt=2 -bsp0 -bso0 \
+            "$RUNNER_TEMP/virgl-driver/bundle/virgl-windows.7z" .
+          cp source.json "$RUNNER_TEMP/virgl-driver/bundle/source.json"
+          cd "$RUNNER_TEMP/virgl-driver/bundle"
+          sha256sum virgl-windows.7z > virgl-windows.7z.sha256
+          ls -lh virgl-windows.7z
       - uses: actions/upload-artifact@v4
         with:
           name: virgl-windows-experimental
-          path: ${{ runner.temp }}/virgl-driver/payload/
-          compression-level: 6
+          path: ${{ runner.temp }}/virgl-driver/bundle/
+          compression-level: 0
           retention-days: 3
           if-no-files-found: error
