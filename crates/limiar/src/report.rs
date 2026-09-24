@@ -9,6 +9,7 @@ pub struct Capability {
 #[derive(Debug, Clone, Serialize)]
 pub struct Adapter {
     pub index: u32,
+    pub luid: Option<String>,
     pub name: String,
     pub vendor_id: u32,
     pub device_id: u32,
@@ -76,6 +77,7 @@ mod tests {
             .enumerate()
             .map(|(i, name)| Adapter {
                 index: i as u32,
+                luid: None,
                 name: name.into(),
                 vendor_id: 0,
                 device_id: 0,

@@ -7,7 +7,8 @@ Limiar CLI
   |-- host inventory + WHP capability query (read-only)
   |-- explicit DXGI adapter -> bounded native D3D11 readback test
   |-- strict TOML + persisted identity -> supervised OpenVMM -> WHP -> guest
-  `-- explicit GPU-PV laboratory -> HCS -> disposable Linux guest
+  |-- explicit GPU-PV laboratory -> HCS -> disposable Linux guest
+  `-- Windows lab scripts -> native Hyper-V -> persistent Windows guest
 ```
 
 The CLI is the first working surface for a future Hub. It is not a new
@@ -55,6 +56,29 @@ that could change their meaning.
 The runner captures stdout/stderr, distinguishes timeout from a successful
 exit, and checks a guest-specific serial marker when one is configured.
 Passing a process-start test is not sufficient evidence of a guest boot.
+
+## Windows Lab
+
+Version 0.4 adds a separate PowerShell 7 workflow around the native Hyper-V
+management APIs. This supplies the persistent VHDX, Secure Boot/vTPM,
+installer DVD and PowerShell Direct required for Windows validation.
+It does not reuse the OpenVMM registry as if their capabilities were equal.
+
+Every action checks a recorded VM GUID, name, ownership marker, sole VHDX and
+absence of a network adapter. Guest writes additionally verify the hostname,
+SMBIOS UUID and payload owner. Credential-bearing data stays in a private
+directory; the host credential file uses Windows DPAPI.
+
+Metadata writes take a short lock, merge unrelated changes and reject
+conflicts. VM/guest operations are sequential. An explicit force stop never
+becomes an implicit fallback, and no stop operation deletes the disk.
+
+The Windows guest runs the same D3D11 diagnostic through PowerShell Direct.
+Its report is correlated with the recorded VM and the assigned physical
+GPU. DXGI index/LUID distinguishes logical entries. The standalone diagnostic
+now reports `process_local_d3d11`; it cannot infer host/guest context itself.
+The portable build statically links the CRT in an isolated Cargo target so
+the guest does not require a preinstalled Visual C++ runtime.
 
 ## Graphics
 

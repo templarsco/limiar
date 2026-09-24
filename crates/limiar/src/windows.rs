@@ -41,6 +41,10 @@ fn enumerate() -> Result<Vec<(IDXGIAdapter1, Adapter)>> {
             .unwrap_or(desc.Description.len());
         let info = Adapter {
             index,
+            luid: Some(format!(
+                "{:08x}:{:08x}",
+                desc.AdapterLuid.HighPart as u32, desc.AdapterLuid.LowPart
+            )),
             name: String::from_utf16_lossy(&desc.Description[..length]),
             vendor_id: desc.VendorId,
             device_id: desc.DeviceId,
@@ -343,16 +347,16 @@ pub fn gpu_test(selector: &str, iterations: u16) -> Result<GpuTestReport> {
     Ok(GpuTestReport {
         schema_version: 1,
         status: "passed",
-        scope: "host_native_d3d11",
+        scope: "process_local_d3d11",
         adapter: info.clone(),
         feature_level: format!("0x{:x}", feature_level.0),
         iterations,
         pixels_verified: u64::from(SIDE) * u64::from(SIDE) * u64::from(iterations),
         elapsed_ms: start.elapsed().as_millis(),
         limitations: vec![
-            "Not a guest, passthrough, GPU-P, or game compatibility test.",
+            "The caller must establish host/guest context and GPU delivery mode separately.",
             "Small clear/copy/readback workload; not a sustained-load benchmark.",
-            "elapsed_ms is host wall time, not GPU timestamp-query timing.",
+            "elapsed_ms is process wall time, not GPU timestamp-query timing.",
         ],
     })
 }

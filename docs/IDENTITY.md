@@ -61,6 +61,7 @@ Version 0.3 reads 0.2 records; older binaries cannot be assumed to read new fiel
 | OpenVMM / Linux direct | Implemented and tested | Implemented and tested | Not implemented | Not implemented |
 | OpenVMM / UEFI | Rejected | Mapped to upstream fields; Windows guest validation pending | Not implemented | Not implemented |
 | HCS / Linux probe | No override | No override | No override | Experimental GPU-PV path |
+| Native Hyper-V / Windows lab | No override | Hyper-V-generated, observed in guest | No override | Windows D3D11 tests passed in 0.4 |
 
 The HCS probe does not consume OpenVMM profiles or their identity values.
 Combining full identity controls with shared graphics in one production VM

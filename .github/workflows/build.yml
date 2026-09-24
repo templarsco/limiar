@@ -28,6 +28,16 @@ jobs:
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Tests
         run: cargo test --workspace --all-targets --locked
+      - name: Windows workflow safety tests (mock providers)
+        shell: pwsh
+        run: pwsh -NoProfile -File ./tests/windows_workflow.ps1
+      - name: ISO builder dependencies
+        run: |
+          python -m pip install --target target/test-python --require-hashes --only-binary=:all: -r runtime/windows-tools-requirements.txt
+      - name: ISO builder tests
+        env:
+          PYTHONPATH: target/test-python
+        run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Linux guest probe source checks
         if: runner.os == 'Linux'
         shell: bash
@@ -43,7 +53,11 @@ jobs:
             -isystem "$headers/include" -isystem "$headers/include/wsl/stubs" \
             guest/linux/gpu-probe.cpp
       - name: Build
+        if: runner.os != 'Windows'
         run: cargo build --release --locked -p limiar
+      - name: Portable Windows build
+        if: runner.os == 'Windows'
+        run: ./scripts/Build-PortableCli.ps1
       - name: CLI smoke
         run: cargo run --locked -- --help
       - name: Collect dependency notices
@@ -55,7 +69,7 @@ jobs:
         with:
           name: limiar-cli-windows-x64
           path: |
-            target/release/limiar.exe
+            target/portable/x86_64-pc-windows-msvc/release/limiar.exe
             README.md
             LICENSE-MIT
             LICENSE-APACHE

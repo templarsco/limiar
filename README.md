@@ -6,17 +6,44 @@
 OpenVMM.** Formerly the PVGPU experimental GPU-remoting project.
 
 This is an early developer release, not a completed desktop hypervisor or a
-production-ready gaming VM. Version 0.3 adds persistent, configurable SMBIOS
-identity and an experimental **shared GPU-PV** laboratory on Windows.
-Dedicated GPU passthrough comes later.
+production-ready gaming VM. Version 0.4 adds a persistent **Windows 11
+GPU-PV laboratory**, with Secure Boot, vTPM and guest-side graphics verification.
+Configurable SMBIOS remains available through OpenVMM. Dedicated passthrough
+comes later.
 
 Local validation: **11 SMBIOS fields matched inside Linux** and **10 GPU-PV
 D3D12 pixel-test cycles passed on an RX 9070 XT**, with the host graphics path
 checked before and after.
 
-There are currently **two separate execution paths**: OpenVMM for managed VMs
-with custom identity, and HCS for the disposable GPU-PV Linux probe. A single
-Windows desktop VM combining all identity controls and GPU-PV is not implemented.
+The Windows 11 Pro guest now boots from a persistent VHDX and executes D3D11
+clear/copy/readback on the shared RX 9070 XT. This is separate from the
+OpenVMM identity path and the disposable HCS Linux probe. **A Windows VM with
+full custom SMBIOS/CPUID/ACPI/PCI identity is not implemented.**
+
+## Windows 11 Lab
+
+The workflow uses native Hyper-V management, a new dedicated virtual disk,
+read-only installation/provisioning ISOs, and PowerShell Direct. It does not
+attach physical disks, connect the guest to a host network, or dismount the GPU.
+
+```powershell
+.\scripts\Build-PortableCli.ps1
+.\scripts\windows\New-LabVm.ps1 -Name Limiar-Win11-25H2
+$lab = ".limiar/windows/Limiar-Win11-25H2/lab.json"
+.\scripts\windows\Prepare-Install.ps1 -LabPath $lab -Iso "F:\ISOs\your-windows.iso"
+.\scripts\windows\Start-Install.ps1 -LabPath $lab
+```
+
+The ISO builder needs the pinned Python dependency and a 7-Zip-compatible
+reader; follow the [complete Windows lab procedure](docs/WINDOWS-LAB.md).
+The current template targets pt-BR x64 media. It may pause at the ordinary
+product-key page; activation is not automated.
+
+After Windows installation and driver provisioning, use `Start-LabVm.ps1`,
+`Stop-LabVm.ps1` and `Test-GuestGpu.ps1`. Records contain ownership checks and
+machine-local protected credentials, so keep `.limiar/` private.
+The [Windows validation report](docs/validation/2026-09-24-windows-gpu-pv.md)
+distinguishes guest GPU work from host-only diagnostics.
 
 ## PC Identity
 
@@ -29,7 +56,7 @@ section keep their previous behavior.
 This recovers the identity checklist from the historical project and makes
 the implementation status explicit:
 
-| Surface | Fields | Status in 0.3 |
+| Surface | Fields | Status in 0.4 |
 |---|---|---|
 | SMBIOS 0: BIOS | Vendor, version, release date, major/minor release | Configurable and guest-verified with OpenVMM Linux direct boot |
 | SMBIOS 1: system | Manufacturer, product, version, serial, UUID, SKU, family | Configurable; all seven guest-verified on Linux |
@@ -37,10 +64,10 @@ the implementation status explicit:
 | SMBIOS 3: chassis | Manufacturer, type, version, serial, asset tag | Not exposed by the pinned OpenVMM CLI |
 | CPU / CPUID / topology | Vendor, model, features, sockets, cores, threads | vCPU count configurable; arbitrary CPU identity is not implemented |
 | Memory / SMBIOS 16-17 | Capacity, slots, module identities, speed | Total VM memory configurable; DIMM identity is not implemented |
-| Firmware / clock | UEFI, RTC, Secure Boot, TPM, persistent variables | UEFI launch available; complete firmware identity and vTPM workflow pending |
+| Firmware / clock | UEFI, RTC, Secure Boot, TPM, persistent variables | Windows lab has verified Secure Boot/vTPM; full firmware identity controls pending |
 | ACPI / PCI / devices | OEM/table IDs, topology, device IDs, bus information | Backend-generated, not fully customizable |
-| Storage / network | Disk identities, MAC addresses, guest hostname | Dedicated identity controls pending |
-| Graphics | GPU identity, driver, capabilities, shared/dedicated mode | GPU-PV laboratory; device identity remains backend/driver-reported |
+| Storage / network | Disk identities, MAC addresses, guest hostname | Persistent VHDX and unique Windows hostname; detailed identity controls pending |
+| Graphics | GPU identity, driver, capabilities, shared/dedicated mode | Windows/Linux GPU-PV labs; device identity remains backend/driver-reported |
 
 The historical example listed types 0-3, CPU/topology, firmware and RTC; it
 was not a validated bare-metal-equivalence configuration. The expanded
@@ -49,7 +76,7 @@ that old list from the new work.
 
 **SMBIOS customization does not make every observable property equivalent to
 physical hardware.** Unsupported fields are rejected, not silently ignored.
-UEFI only accepts Type 1 overrides; its BIOS self-description is not replaced.
+OpenVMM UEFI only accepts Type 1 overrides; its BIOS self-description is not replaced.
 
 ```powershell
 .\scripts\Build-LinuxProbe.ps1
@@ -95,10 +122,19 @@ cargo build --release --locked
 .\target\release\limiar.exe gpu test --adapter "RX 9070 XT" --iterations 3
 ```
 
+For a clean Windows machine without the Visual C++ runtime installed, use
+`scripts/Build-PortableCli.ps1`. It links the CRT statically in an isolated
+build target and does not change the OpenVMM build environment.
+
 Adapter selection is explicit: use a DXGI index or an unambiguous name from
 `gpu list`. Software adapters are rejected by the hardware test. The test
 clears/copies a 64x64 texture and verifies its pixels; it is not a benchmark
 or proof of guest GPU acceleration.
+
+Version 0.4 includes DXGI LUIDs and reports this operation as
+`process_local_d3d11`: the surrounding workflow must establish host/guest
+context. The Windows lab correlates its VM identity and tests every matching
+hardware entry; two DXGI entries are not evidence of two physical GPUs.
 
 Commands produce JSON. `--output <new-file>` also saves a report and refuses
 to overwrite an existing file. Local reports can contain hardware instance
