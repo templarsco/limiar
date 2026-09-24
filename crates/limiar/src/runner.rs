@@ -1,6 +1,7 @@
 use crate::config::LaunchPlan;
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -28,6 +29,8 @@ pub struct RunReport {
     pub stdout_log: PathBuf,
     pub stderr_log: PathBuf,
     pub gpu_assignment: bool,
+    #[serde(default)]
+    pub expected_dmi: Option<BTreeMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -105,7 +108,7 @@ fn attach_job(child: &Child) -> Result<std::os::windows::io::OwnedHandle> {
     }
 }
 
-fn transcript(stdout: &Path, stderr: &Path) -> Result<Option<String>> {
+pub fn read_transcript(stdout: &Path, stderr: &Path) -> Result<Option<String>> {
     let mut out = Vec::new();
     File::open(stdout)?
         .take(MAX_LOG_BYTES + 1)
@@ -137,7 +140,10 @@ pub fn execute_controlled(
     logs: &Path,
     control: Option<&RunControl<'_>>,
 ) -> Result<RunReport> {
-    ensure!(plan.ready, "one or more required input files are missing");
+    ensure!(
+        plan.ready,
+        "missing input files or identity needs registration; inspect vm plan/preview"
+    );
     ensure!(!plan.gpu_assignment, "device assignment is not implemented");
     ensure!(!timeout.is_zero(), "timeout must be positive");
     if mode == Mode::Smoke {
@@ -167,7 +173,7 @@ pub fn execute_controlled(
     let mut marker_seen = false;
     let mut marker_time = None;
     let (success, stop_reason, exit_code) = loop {
-        let Some(text) = transcript(&stdout_log, &stderr_log)? else {
+        let Some(text) = read_transcript(&stdout_log, &stderr_log)? else {
             break (false, "log_limit", None);
         };
         if let Some(marker) = &plan.serial_marker {
@@ -184,7 +190,7 @@ pub fn execute_controlled(
         }
         if let Some(status) = process.child.try_wait()? {
             // Re-read after exit: the final write can race the previous read.
-            if let Some(text) = transcript(&stdout_log, &stderr_log)? {
+            if let Some(text) = read_transcript(&stdout_log, &stderr_log)? {
                 if text.contains("Kernel panic - not syncing") {
                     break (false, "guest_kernel_panic", status.code());
                 }
@@ -232,6 +238,10 @@ pub fn execute_controlled(
         stdout_log,
         stderr_log,
         gpu_assignment: false,
+        expected_dmi: plan
+            .identity
+            .as_ref()
+            .map(|identity| identity.expected_dmi.clone()),
     };
     fs::write(
         directory.join("result.json"),
@@ -254,6 +264,7 @@ mod tests {
             ready: true,
             serial_marker: Some("runner::tests::records_a_verified_exit".into()),
             gpu_assignment: false,
+            identity: None,
         }
     }
 
@@ -325,7 +336,7 @@ mod tests {
             .set_len(MAX_LOG_BYTES + 1)
             .unwrap();
         File::create(&err).unwrap();
-        assert!(transcript(&out, &err).unwrap().is_none());
+        assert!(read_transcript(&out, &err).unwrap().is_none());
     }
 
     #[test]

@@ -1,3 +1,4 @@
+use crate::identity::{Identity, IdentityPlan};
 use anyhow::{Context, Result, ensure};
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -13,6 +14,7 @@ pub struct VmConfig {
     pub memory_mib: u32,
     pub runtime: Runtime,
     pub boot: Boot,
+    pub identity: Option<Identity>,
     #[serde(default)]
     pub verification: Verification,
 }
@@ -67,6 +69,7 @@ pub struct LaunchPlan {
     pub ready: bool,
     pub serial_marker: Option<String>,
     pub gpu_assignment: bool,
+    pub identity: Option<IdentityPlan>,
 }
 
 impl VmConfig {
@@ -85,6 +88,9 @@ impl VmConfig {
             "memory_mib must be 128..262144"
         );
         validate_name(&self.name)?;
+        if let Some(identity) = &self.identity {
+            identity.validate(matches!(self.boot, Boot::LinuxDirect { .. }))?;
+        }
         if let Some(marker) = &self.verification.serial_marker {
             ensure!(
                 !marker.trim().is_empty() && marker.len() <= 512 && !marker.contains('\0'),
@@ -170,16 +176,40 @@ impl VmConfig {
                 ]);
             }
         }
+        let identity = self
+            .identity
+            .as_ref()
+            .map(|identity| {
+                let (identity, smbios) =
+                    identity.plan(matches!(self.boot, Boot::LinuxDirect { .. }))?;
+                arguments.extend(smbios);
+                Ok::<_, anyhow::Error>(identity)
+            })
+            .transpose()?;
         Ok(LaunchPlan {
             schema_version: 1,
             name: self.name.clone(),
             executable,
             arguments,
-            ready: inputs.iter().all(|input| input.exists),
+            ready: inputs.iter().all(|input| input.exists)
+                && !identity
+                    .as_ref()
+                    .is_some_and(|identity| identity.requires_registration),
             inputs,
             serial_marker: self.verification.serial_marker.clone(),
             gpu_assignment: false,
+            identity,
         })
+    }
+
+    pub fn materialize_identity(&mut self, previous: Option<&Self>) -> Result<()> {
+        if let Some(identity) = &mut self.identity {
+            identity.materialize(
+                previous.and_then(|profile| profile.identity.as_ref()),
+                matches!(self.boot, Boot::LinuxDirect { .. }),
+            )?;
+        }
+        Ok(())
     }
 
     pub fn resolved(&self, base: &Path) -> Result<Self> {

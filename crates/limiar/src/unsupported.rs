@@ -26,3 +26,14 @@ pub fn doctor() -> Result<DoctorReport> {
         warnings: vec!["Only profile validation is supported on this platform".into()],
     })
 }
+pub fn gpu_pv_inventory() -> anyhow::Result<crate::gpu_pv::Inventory> {
+    anyhow::bail!("GPU-PV host inventory currently requires Windows")
+}
+
+pub fn gpu_pv_probe(
+    _plan: &crate::gpu_pv::ProbePlan,
+    _timeout: std::time::Duration,
+    _logs: &std::path::Path,
+) -> anyhow::Result<crate::gpu_pv::ProbeReport> {
+    anyhow::bail!("HCS GPU-PV execution requires Windows")
+}

@@ -15,6 +15,7 @@ serde.workspace = true
 serde_json.workspace = true
 toml.workspace = true
 tempfile = "3"
+uuid = { version = "1", features = ["v4", "serde"] }
 
 [target.'cfg(windows)'.dependencies]
 libloading = "0.8"
@@ -27,6 +28,7 @@ windows = { version = "0.58", features = [
   "Win32_Graphics_Dxgi_Common",
   "Win32_Security",
   "Win32_System_JobObjects",
+  "Win32_System_Pipes",
   "Win32_System_SystemInformation",
   "Win32_System_Threading",
 ] }

@@ -6,9 +6,81 @@
 OpenVMM.** Formerly the PVGPU experimental GPU-remoting project.
 
 This is an early developer release, not a completed desktop hypervisor or a
-production-ready gaming VM. Version 0.2 provides local diagnostics, a bounded
-native GPU test, validated VM profiles, a persistent VM registry, and controlled
-foreground runtime launches. It does not implement GPU passthrough or GPU sharing.
+production-ready gaming VM. Version 0.3 adds persistent, configurable SMBIOS
+identity and an experimental **shared GPU-PV** laboratory on Windows.
+Dedicated GPU passthrough comes later.
+
+Local validation: **11 SMBIOS fields matched inside Linux** and **10 GPU-PV
+D3D12 pixel-test cycles passed on an RX 9070 XT**, with the host graphics path
+checked before and after.
+
+There are currently **two separate execution paths**: OpenVMM for managed VMs
+with custom identity, and HCS for the disposable GPU-PV Linux probe. A single
+Windows desktop VM combining all identity controls and GPU-PV is not implemented.
+
+## PC Identity
+
+Identity is part of the VM profile, not a set of randomly changing values.
+The `limiar` preset presents **Limiar One / Limiar Desktop**, with a per-VM UUID
+and serial generated once on registration. Users can override every exposed
+field or select the `custom` preset. Existing profiles without an identity
+section keep their previous behavior.
+
+This recovers the identity checklist from the historical project and makes
+the implementation status explicit:
+
+| Surface | Fields | Status in 0.3 |
+|---|---|---|
+| SMBIOS 0: BIOS | Vendor, version, release date, major/minor release | Configurable and guest-verified with OpenVMM Linux direct boot |
+| SMBIOS 1: system | Manufacturer, product, version, serial, UUID, SKU, family | Configurable; all seven guest-verified on Linux |
+| SMBIOS 2: baseboard | Manufacturer, product, version, serial, asset tag | Not exposed by the pinned OpenVMM CLI |
+| SMBIOS 3: chassis | Manufacturer, type, version, serial, asset tag | Not exposed by the pinned OpenVMM CLI |
+| CPU / CPUID / topology | Vendor, model, features, sockets, cores, threads | vCPU count configurable; arbitrary CPU identity is not implemented |
+| Memory / SMBIOS 16-17 | Capacity, slots, module identities, speed | Total VM memory configurable; DIMM identity is not implemented |
+| Firmware / clock | UEFI, RTC, Secure Boot, TPM, persistent variables | UEFI launch available; complete firmware identity and vTPM workflow pending |
+| ACPI / PCI / devices | OEM/table IDs, topology, device IDs, bus information | Backend-generated, not fully customizable |
+| Storage / network | Disk identities, MAC addresses, guest hostname | Dedicated identity controls pending |
+| Graphics | GPU identity, driver, capabilities, shared/dedicated mode | GPU-PV laboratory; device identity remains backend/driver-reported |
+
+The historical example listed types 0-3, CPU/topology, firmware and RTC; it
+was not a validated bare-metal-equivalence configuration. The expanded
+[identity specification and field mapping](docs/IDENTITY.md) distinguishes
+that old list from the new work.
+
+**SMBIOS customization does not make every observable property equivalent to
+physical hardware.** Unsupported fields are rejected, not silently ignored.
+UEFI only accepts Type 1 overrides; its BIOS self-description is not replaced.
+
+```powershell
+.\scripts\Build-LinuxProbe.ps1
+.\target\release\limiar.exe vm register examples/linux-identity.toml
+.\target\release\limiar.exe vm verify-identity limiar-one
+```
+
+The builder needs WSL with Bash, BusyBox and gzip. The guest reports its DMI
+values, checks userspace and powers off. `verify-identity` compares the guest
+report to the exact configuration used for that run. See also the
+[fully customized example](examples/linux-custom-identity.toml).
+
+## Shared GPU First
+
+GPU-PV keeps the physical GPU available to the host. The local laboratory
+selects an exact partitionable adapter and creates a temporary HCS VM; it
+does not disable or dismount that device.
+
+```powershell
+.\target\release\limiar.exe gpu pv list
+.\target\release\limiar.exe gpu pv probe --experimental `
+  --adapter "RX 9070 XT" `
+  --kernel "C:\Program Files\WSL\tools\kernel" `
+  --initrd .limiar/images/linux-probe.initrd
+```
+
+This command checks assignment, Linux boot, guest shutdown and cleanup,
+**not rendering**. The optional `--verify-rendering` mode requires a separately
+built GPU probe image and verifies a bounded D3D12 clear/copy/readback workload.
+See [GPU-PV setup, evidence and limitations](docs/GPU-PV.md).
+Windows client / consumer Radeon compatibility remains experimental.
 
 ## Try The CLI
 
@@ -99,6 +171,7 @@ cargo test --workspace --all-targets --locked
 - [Architecture and implementation boundaries](docs/ARCHITECTURE.md)
 - [Local validation: Windows 11 and RX 9070 XT](docs/validation/2026-09-23-foundation.md)
 - [Managed VM lifecycle validation](docs/validation/2026-09-24-managed-vms.md)
+- [Identity and GPU-PV validation](docs/validation/2026-09-24-identity-gpu-pv.md)
 - [Contribution guide](CONTRIBUTING.md)
 
 Windows client device assignment is still an experiment. Limiar never disables
