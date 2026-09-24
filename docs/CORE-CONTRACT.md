@@ -120,6 +120,12 @@ Version 0.4 provides reusable evidence: Linux identity verification,
 Linux GPU-PV rendering, and a separate Windows GPU-PV lab. Those results
 remain valid within their documented scope. They do not pass this core gate.
 
+Version 0.5 additionally verifies 22 Type 0/1/2/3 fields in a persistent
+QEMU/WHPX Windows guest with basic desktop output. Its four validated cold
+boots include custom values and restoration. This advances the identity
+requirement; shared GPU acceleration and the combined application gate
+remain open.
+
 Do not change host boot/security settings, load experimental kernel drivers,
 or disable/dismount a display GPU as an incidental documentation or build
 step. Such experiments need a specific recovery plan and confirmation

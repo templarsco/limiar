@@ -19,6 +19,10 @@ pub struct Identity {
     #[serde(default)]
     pub system: System,
     pub bios: Option<Bios>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub baseboard: Option<Baseboard>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub chassis: Option<Chassis>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
@@ -40,6 +44,27 @@ pub struct Bios {
     pub version: Option<String>,
     pub date: Option<String>,
     pub release: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Baseboard {
+    pub manufacturer: Option<String>,
+    pub product: Option<String>,
+    pub version: Option<String>,
+    pub serial: Option<String>,
+    pub asset: Option<String>,
+    pub location: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Chassis {
+    pub manufacturer: Option<String>,
+    pub version: Option<String>,
+    pub serial: Option<String>,
+    pub asset: Option<String>,
+    pub sku: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -121,6 +146,10 @@ fn validate_date(date: &str) -> Result<()> {
 
 impl Identity {
     pub fn validate(&self, linux_direct: bool) -> Result<()> {
+        ensure!(
+            self.baseboard.is_none() && self.chassis.is_none(),
+            "baseboard and chassis identity require the experimental qemu_uefi backend"
+        );
         for (key, value) in [
             ("manufacturer", &self.system.manufacturer),
             ("product", &self.system.product),
@@ -296,6 +325,183 @@ impl Identity {
             arguments,
         ))
     }
+
+    fn type01(&self) -> Self {
+        let mut identity = self.clone();
+        identity.baseboard = None;
+        identity.chassis = None;
+        identity
+    }
+
+    pub fn validate_qemu(&self) -> Result<()> {
+        self.type01().validate(true)?;
+        if let Some(board) = &self.baseboard {
+            for (field, value) in [
+                ("manufacturer", &board.manufacturer),
+                ("product", &board.product),
+                ("version", &board.version),
+                ("serial", &board.serial),
+                ("asset", &board.asset),
+                ("location", &board.location),
+            ] {
+                if let Some(value) = value {
+                    text(&format!("identity.baseboard.{field}"), value)?;
+                }
+            }
+        }
+        if let Some(chassis) = &self.chassis {
+            for (field, value) in [
+                ("manufacturer", &chassis.manufacturer),
+                ("version", &chassis.version),
+                ("serial", &chassis.serial),
+                ("asset", &chassis.asset),
+                ("sku", &chassis.sku),
+            ] {
+                if let Some(value) = value {
+                    text(&format!("identity.chassis.{field}"), value)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn apply_qemu_defaults(&mut self) {
+        self.apply_defaults(true);
+        if self.preset != Preset::Limiar {
+            return;
+        }
+        let board = self.baseboard.get_or_insert_with(Baseboard::default);
+        for (slot, value) in [
+            (&mut board.manufacturer, "Limiar"),
+            (&mut board.product, "Limiar Mainboard"),
+            (&mut board.version, "1.0"),
+            (&mut board.asset, "LMR-BOARD"),
+            (&mut board.location, "Mainboard"),
+        ] {
+            slot.get_or_insert_with(|| value.to_owned());
+        }
+        let chassis = self.chassis.get_or_insert_with(Chassis::default);
+        for (slot, value) in [
+            (&mut chassis.manufacturer, "Limiar"),
+            (&mut chassis.version, "Limiar Desktop"),
+            (&mut chassis.asset, "LMR-CHASSIS"),
+            (&mut chassis.sku, "LMR-DESKTOP"),
+        ] {
+            slot.get_or_insert_with(|| value.to_owned());
+        }
+        if let Some(uuid) = self.system.uuid {
+            let suffix = uuid.simple().to_string()[..16].to_ascii_uppercase();
+            board
+                .serial
+                .get_or_insert_with(|| format!("LMR-B-{suffix}"));
+            chassis
+                .serial
+                .get_or_insert_with(|| format!("LMR-C-{suffix}"));
+        }
+    }
+
+    pub fn materialize_qemu(&mut self, previous: Option<&Self>) -> Result<()> {
+        self.validate_qemu()?;
+        let mut base = self.type01();
+        let previous_base = previous.map(Self::type01);
+        base.materialize(previous_base.as_ref(), true)?;
+        self.system = base.system;
+        self.bios = base.bios;
+        if self.preset == Preset::Limiar || self.baseboard.is_some() {
+            let board = self.baseboard.get_or_insert_with(Baseboard::default);
+            if board.serial.is_none() {
+                board.serial = previous
+                    .and_then(|identity| identity.baseboard.as_ref())
+                    .and_then(|board| board.serial.clone());
+            }
+        }
+        if self.preset == Preset::Limiar || self.chassis.is_some() {
+            let chassis = self.chassis.get_or_insert_with(Chassis::default);
+            if chassis.serial.is_none() {
+                chassis.serial = previous
+                    .and_then(|identity| identity.chassis.as_ref())
+                    .and_then(|chassis| chassis.serial.clone());
+            }
+        }
+        self.apply_qemu_defaults();
+        self.validate_qemu()
+    }
+
+    pub fn plan_qemu(&self) -> Result<(IdentityPlan, Vec<String>)> {
+        self.validate_qemu()?;
+        let mut effective = self.clone();
+        effective.apply_qemu_defaults();
+        let (mut plan, mut arguments) = effective.type01().plan(true)?;
+        // The Type 0/1 keys are shared; QEMU uses a single-dash option.
+        for argument in &mut arguments {
+            if argument == "--smbios" {
+                *argument = "-smbios".to_owned();
+            }
+        }
+        let mut bios_present = false;
+        for pair in arguments.chunks_exact_mut(2) {
+            if pair[1].starts_with("type=0,") {
+                pair[1].push_str(",uefi=on");
+                bios_present = true;
+            }
+        }
+        if !bios_present {
+            arguments.extend(["-smbios".to_owned(), "type=0,uefi=on".to_owned()]);
+        }
+        if let Some(board) = &effective.baseboard {
+            append_qemu_table(
+                &mut plan.expected_dmi,
+                &mut arguments,
+                2,
+                &[
+                    ("manufacturer", "board_vendor", &board.manufacturer),
+                    ("product", "board_name", &board.product),
+                    ("version", "board_version", &board.version),
+                    ("serial", "board_serial", &board.serial),
+                    ("asset", "board_asset_tag", &board.asset),
+                    ("location", "board_location", &board.location),
+                ],
+            );
+        }
+        if let Some(chassis) = &effective.chassis {
+            append_qemu_table(
+                &mut plan.expected_dmi,
+                &mut arguments,
+                3,
+                &[
+                    ("manufacturer", "chassis_vendor", &chassis.manufacturer),
+                    ("version", "chassis_version", &chassis.version),
+                    ("serial", "chassis_serial", &chassis.serial),
+                    ("asset", "chassis_asset_tag", &chassis.asset),
+                    ("sku", "chassis_sku", &chassis.sku),
+                ],
+            );
+        }
+        plan.limitations = vec![
+            "Experimental QEMU/WHPX UEFI path; graphics use an emulated display, not GPU-PV.",
+            "Only the listed SMBIOS Type 0/1/2/3 fields are implemented.",
+            "SMBIOS customization does not replace CPUID, ACPI, PCI, drivers, or the underlying hypervisor.",
+        ];
+        Ok((plan, arguments))
+    }
+}
+
+fn append_qemu_table(
+    expected: &mut BTreeMap<String, String>,
+    arguments: &mut Vec<String>,
+    kind: u8,
+    fields: &[(&str, &str, &Option<String>)],
+) {
+    let mut values = vec![format!("type={kind}")];
+    for (option, field, value) in fields {
+        if let Some(value) = value {
+            values.push(format!("{option}={value}"));
+            expected.insert((*field).to_owned(), value.clone());
+        }
+    }
+    if values.len() > 1 {
+        arguments.extend(["-smbios".to_owned(), values.join(",")]);
+    }
 }
 
 pub fn verify(expected: &BTreeMap<String, String>, transcript: &str) -> Result<Verification> {
@@ -371,6 +577,117 @@ pub fn verify(expected: &BTreeMap<String, String>, transcript: &str) -> Result<V
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn qemu_preset_materializes_and_maps_all_twenty_two_fields() {
+        let mut identity = Identity::default();
+        let (preview, _) = identity.plan_qemu().unwrap();
+        assert!(preview.requires_registration);
+        assert!(identity.baseboard.is_none());
+        assert!(identity.system.uuid.is_none());
+        identity.materialize_qemu(None).unwrap();
+        let (plan, arguments) = identity.plan_qemu().unwrap();
+        assert!(!plan.requires_registration);
+        assert_eq!(plan.expected_dmi.len(), 22);
+        assert_eq!(plan.expected_dmi["board_name"], "Limiar Mainboard");
+        assert_eq!(plan.expected_dmi["chassis_sku"], "LMR-DESKTOP");
+        assert_eq!(
+            arguments.iter().filter(|value| *value == "-smbios").count(),
+            4
+        );
+        assert!(!arguments.iter().any(|value| value == "--smbios"));
+        assert!(
+            arguments
+                .iter()
+                .any(|value| value.starts_with("type=0,") && value.ends_with(",uefi=on"))
+        );
+    }
+
+    #[test]
+    fn qemu_updates_preserve_all_persistent_identifiers() {
+        let mut original = Identity::default();
+        original.materialize_qemu(None).unwrap();
+        original.baseboard.as_mut().unwrap().serial = Some("MY-BOARD".into());
+        original.chassis.as_mut().unwrap().serial = Some("MY-CHASSIS".into());
+        let mut update = Identity::default();
+        update.materialize_qemu(Some(&original)).unwrap();
+        assert_eq!(update.system.uuid, original.system.uuid);
+        assert_eq!(update.system.serial, original.system.serial);
+        assert_eq!(
+            update.baseboard.unwrap().serial.as_deref(),
+            Some("MY-BOARD")
+        );
+        assert_eq!(
+            update.chassis.unwrap().serial.as_deref(),
+            Some("MY-CHASSIS")
+        );
+    }
+
+    #[test]
+    fn qemu_explicit_board_serial_replacement_is_respected() {
+        let mut original = Identity::default();
+        original.materialize_qemu(None).unwrap();
+        let mut update = Identity {
+            baseboard: Some(Baseboard {
+                serial: Some("REPLACEMENT".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        update.materialize_qemu(Some(&original)).unwrap();
+        assert_eq!(
+            update.baseboard.unwrap().serial.as_deref(),
+            Some("REPLACEMENT")
+        );
+    }
+
+    #[test]
+    fn openvmm_does_not_silently_discard_extended_tables() {
+        for identity in [
+            Identity {
+                baseboard: Some(Baseboard::default()),
+                ..Default::default()
+            },
+            Identity {
+                chassis: Some(Chassis::default()),
+                ..Default::default()
+            },
+        ] {
+            assert!(identity.validate(true).is_err());
+            assert!(identity.plan(false).is_err());
+            assert!(identity.plan_qemu().is_ok());
+        }
+    }
+
+    #[test]
+    fn qemu_validates_extensions_and_common_fields() {
+        for value in ["comma,value", "equal=value", "line\nbreak", " space", ""] {
+            let identity = Identity {
+                baseboard: Some(Baseboard {
+                    asset: Some(value.into()),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            assert!(identity.plan_qemu().is_err());
+        }
+        let identity = Identity {
+            chassis: Some(Chassis {
+                sku: Some("x".repeat(65)),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(identity.validate_qemu().is_err());
+        let identity = Identity {
+            bios: Some(Bios {
+                date: Some("02/31/2026".into()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert!(identity.validate_qemu().is_err());
+    }
 
     #[test]
     fn preview_does_not_generate_identifiers_and_registration_persists_them() {

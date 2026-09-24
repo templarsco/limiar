@@ -320,6 +320,79 @@ fn unsupported_identity_fields_fail_before_registration() {
 }
 
 #[test]
+fn interactive_lifetime_is_explicit_and_conflicts_with_diagnostic_limits() {
+    let directory = tempfile::tempdir().unwrap();
+    let output = cli(&[
+        "vm",
+        "start",
+        "not-registered",
+        "--registry",
+        directory.path().to_str().unwrap(),
+        "--until-shutdown",
+    ]);
+    assert!(!output.status.success());
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(report["error"].is_string());
+    for additional in [vec!["--timeout-seconds", "60"], vec!["--smoke"]] {
+        let mut arguments = vec!["vm", "start", "not-registered", "--until-shutdown"];
+        arguments.extend(additional);
+        let output = cli(&arguments);
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("cannot be used with"));
+    }
+}
+
+#[test]
+fn linux_identity_verifier_rejects_qemu_before_starting_it() {
+    let directory = tempfile::tempdir().unwrap();
+    let profile = directory.path().join("qemu.toml");
+    fs::write(
+        &profile,
+        r#"
+schema_version = 1
+name = "qemu-verify"
+cpus = 2
+memory_mib = 4096
+[runtime]
+executable = "missing-runtime.exe"
+[boot]
+kind = "qemu_uefi"
+firmware = "code.fd"
+variables = "vars.fd"
+disk = "system.qcow2"
+[identity]
+preset = "limiar"
+"#,
+    )
+    .unwrap();
+    let registry = directory.path().join("registry");
+    let output = cli(&[
+        "vm",
+        "register",
+        profile.to_str().unwrap(),
+        "--registry",
+        registry.to_str().unwrap(),
+    ]);
+    assert!(output.status.success());
+    let output = cli(&[
+        "vm",
+        "verify-identity",
+        "qemu-verify",
+        "--registry",
+        registry.to_str().unwrap(),
+    ]);
+    assert!(!output.status.success());
+    let report: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let error = report["error"].as_str().unwrap();
+    assert!(error.contains(if cfg!(windows) {
+        "Linux direct probe"
+    } else {
+        "requires Windows"
+    }));
+    assert!(!registry.join("qemu-verify/state.json").exists());
+}
+
+#[test]
 fn gpu_pv_probe_requires_explicit_experimental_flag_before_accessing_hardware() {
     let output = cli(&[
         "gpu",

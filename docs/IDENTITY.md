@@ -35,7 +35,7 @@ The optional `[identity]` section uses `preset = "limiar"` by default.
 `preset = "custom"` requires a system manufacturer and product. Both presets
 permit explicit values for every implemented field.
 
-| Profile key | SMBIOS | Linux guest field |
+| Profile key | SMBIOS | Comparison key |
 |---|---|---|
 | `system.manufacturer` | Type 1 | `sys_vendor` |
 | `system.product` | Type 1 | `product_name` |
@@ -48,6 +48,21 @@ permit explicit values for every implemented field.
 | `bios.version` | Type 0 | `bios_version` |
 | `bios.date` | Type 0 | `bios_date` |
 | `bios.release` | Type 0 | `bios_release` |
+| `baseboard.manufacturer` | Type 2, QEMU only | `board_vendor` |
+| `baseboard.product` | Type 2, QEMU only | `board_name` |
+| `baseboard.version` | Type 2, QEMU only | `board_version` |
+| `baseboard.serial` | Type 2, QEMU only | `board_serial` |
+| `baseboard.asset` | Type 2, QEMU only | `board_asset_tag` |
+| `baseboard.location` | Type 2, QEMU only | `board_location` |
+| `chassis.manufacturer` | Type 3, QEMU only | `chassis_vendor` |
+| `chassis.version` | Type 3, QEMU only | `chassis_version` |
+| `chassis.serial` | Type 3, QEMU only | `chassis_serial` |
+| `chassis.asset` | Type 3, QEMU only | `chassis_asset_tag` |
+| `chassis.sku` | Type 3, QEMU only | `chassis_sku` |
+
+The third column names comparison keys, including fields decoded from
+raw Windows SMBIOS in 0.5. Not every key has a Linux sysfs file or has
+been validated on Linux.
 
 Keys in this table are relative to `identity`. See the
 [custom profile](../examples/linux-custom-identity.toml).
@@ -78,12 +93,18 @@ both UUID and serial are explicitly provided for a direct launch.
 Omitting the entire identity section opts out, including on profile update.
 Version 0.3 reads 0.2 records; older binaries cannot be assumed to read new fields.
 
+For `qemu_uefi`, the Limiar preset also fills board/chassis defaults and
+stable serials. Updates preserve those serials unless replacements are
+supplied. All 22 fields are overrideable. Version 0.5 does not change
+OpenVMM defaults; older binaries cannot read the new backend/extensions.
+
 ## Backend Limits
 
 | Backend / boot | Type 0 | Type 1 | Type 2/3 | Shared GPU |
 |---|---|---|---|---|
 | OpenVMM / Linux direct | Implemented and tested | Implemented and tested | Not implemented | Not implemented |
 | OpenVMM / UEFI | Rejected | Mapped to upstream fields; Windows guest validation pending | Not implemented | Not implemented |
+| QEMU / UEFI | Implemented and Windows-verified | Implemented and Windows-verified | 11 fields implemented and Windows-verified | Not implemented |
 | HCS / Linux probe | No override | No override | No override | Experimental GPU-PV path |
 | Native Hyper-V / Windows lab | No override | Hyper-V-generated, observed in guest | No override | Windows D3D11 tests passed in 0.4 |
 
@@ -91,6 +112,8 @@ The HCS probe does not consume OpenVMM profiles or their identity values.
 Combining full identity controls with shared graphics in one production VM
 requires more backend/firmware work. There is no automatic fallback that drops
 identity settings to make an unsupported backend start.
+The QEMU reference now combines Type 0/1/2/3 identity and basic desktop
+output, but not shared GPU acceleration. See [QEMU Windows](QEMU-WINDOWS.md).
 The native Hyper-V lab cannot close this gap through a UI change. The core
 gate must extend or revise the machine/firmware path and verify the configured
 identity in the same Windows guest that performs the graphics workload.
@@ -117,6 +140,9 @@ The new inventory also tracks:
 - Agreement between Windows WMI/device inventory and Linux DMI/sysfs views.
 
 These additional controls are a roadmap, not supported TOML keys.
+The baseboard/chassis string fields in the implemented table above are
+the exception added in 0.5. Broader topology and binary-table controls
+remain planned. JSON profiles share TOML's validation.
 Do not fake capability claims such as a TPM, firmware security state, GPU
 feature level or physical DIMM arrangement that the VM does not implement.
 
@@ -130,6 +156,11 @@ Logs are bounded; the managed runner also rejects kernel panic and bad exits.
 
 This is a guest-reported consistency test, not remote attestation. Local
 reports contain per-VM identifiers and must be reviewed before publication.
+
+Windows uses `scripts/qemu/Test-GuestIdentity.ps1` with a completed Limiar
+run report. It decodes raw `RSMB` data, compares captured expectations and
+cross-checks the Windows system view. `vm verify-identity` remains the
+Linux probe workflow.
 
 ## Upstream References
 
