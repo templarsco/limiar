@@ -54,9 +54,30 @@ jobs:
           seen = set()
           total = 0
           with zipfile.ZipFile(archive) as package:
+              candidates = [
+                  pathlib.PurePosixPath(entry.filename)
+                  for entry in package.infolist()
+                  if entry.filename.lower().endswith(".inf")
+                  and "viogpu" in pathlib.PurePosixPath(entry.filename).name.lower()
+              ]
+              print("Display driver packages:", [str(name) for name in candidates], flush=True)
+              candidates = [
+                  name for name in candidates
+                  if any(part.lower() in {"amd64", "x64"} for part in name.parts)
+                  and not any("arm" in part.lower() for part in name.parts)
+              ]
+              preferred = [
+                  name for name in candidates
+                  if any(part.lower() in {"w11", "win11", "windows11"} for part in name.parts)
+              ]
+              candidates = preferred or candidates
+              assert len(candidates) == 1, "Expected one x64 display driver package"
+              driver_root = candidates[0].parent
               for entry in package.infolist():
                   name = pathlib.PurePosixPath(entry.filename)
                   if entry.is_dir():
+                      continue
+                  if driver_root not in name.parents and name.name.lower() != "virtiotestcert.cer":
                       continue
                   if name.suffix.lower() not in {".sys", ".dll", ".inf", ".cat", ".cer", ".txt", ".md"}:
                       continue

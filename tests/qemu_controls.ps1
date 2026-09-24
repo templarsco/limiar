@@ -53,6 +53,34 @@ try {
     }
 }
 Assert-Equal (& $module { (Get-Command Get-Process).CommandType.ToString() }) 'Cmdlet'
+$cliDirectory = Join-Path ([IO.Path]::GetTempPath()) ('limiar-cli-test-' + [guid]::NewGuid().ToString('N'))
+[void][IO.Directory]::CreateDirectory($cliDirectory)
+$cliFile = Join-Path $cliDirectory 'limiar.exe'
+try {
+    [IO.File]::WriteAllText($cliFile, 'fixture, never executed')
+    $record = @{cli_path=$cliFile;cli_sha256=(Get-FileHash -LiteralPath $cliFile).Hash.ToLowerInvariant()}
+    Assert-Equal (& $module { param($Record) Resolve-LimiarLabCli $Record '' } $record) $cliFile
+    foreach ($invalid in @(
+        @{cli_path='relative.exe';cli_sha256=$record.cli_sha256},
+        @{cli_path=$cliDirectory;cli_sha256=$record.cli_sha256},
+        @{cli_path=$cliFile},
+        @{cli_path='';cli_sha256=$record.cli_sha256},
+        @{cli_path=$cliFile;cli_sha256=('0' * 64)}
+    )) {
+        $rejected = $false
+        try { & $module { param($Record) Resolve-LimiarLabCli $Record '' } $invalid | Out-Null }
+        catch { $rejected = $true }
+        Assert-Equal $rejected $true
+    }
+    [IO.File]::AppendAllText($cliFile, 'modified')
+    $rejected = $false
+    try { & $module { param($Record) Resolve-LimiarLabCli $Record '' } $record | Out-Null }
+    catch { $rejected = $_.Exception.Message -eq 'Lab CLI changed since this lab was prepared' }
+    Assert-Equal $rejected $true
+} finally {
+    [IO.File]::Delete($cliFile)
+    [IO.Directory]::Delete($cliDirectory)
+}
 function Get-CimInstance {
     param($ClassName)
     return [pscustomobject]@{UUID='00112233-4455-6677-8899-aabbccddeeff'}

@@ -20,6 +20,10 @@ if ($Name -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$') { throw 'Reserved VM n
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $cli = if ($CliPath) { (Resolve-Path -LiteralPath $CliPath).Path } else { Join-Path $root 'target\release\limiar.exe' }
 if (-not (Test-Path -LiteralPath $cli -PathType Leaf)) { throw 'Build the release CLI first' }
+$cliFile = Get-Item -LiteralPath $cli
+if ($cliFile -isnot [IO.FileInfo] -or $cliFile.Extension -ine '.exe' -or
+    ($cliFile.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Lab CLI must be a regular executable' }
+$cliHash = (Get-FileHash -LiteralPath $cliFile.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
 $version = & $cli --version
 if ($LASTEXITCODE -ne 0 -or [version]($version -replace '^limiar ', '') -lt [version]'0.6.0') {
     throw 'New QEMU lab profiles require Limiar 0.6 or later'
@@ -62,7 +66,7 @@ $record = [ordered]@{
     qmp_socket=$socketPath
     runtime_path=$runtime.executable;runtime_sha256=$runtime.executable_sha256
     firmware_path=(Join-Path $runtime.directory 'share\edk2-x86_64-code.fd')
-    cli_path=$cli;gpu_mode=$Graphics;network=$Network;audio=[bool]$Audio
+    cli_path=$cli;cli_sha256=$cliHash;gpu_mode=$Graphics;network=$Network;audio=[bool]$Audio
     contains_private_credentials=($null -ne $credential)
 }
 function Save-Record {
@@ -87,7 +91,7 @@ try {
         }
         identity=@{
             preset='limiar'
-            bios=@{vendor='Limiar';version='UEFI 0.5';date='09/24/2026';release='0.5'}
+            bios=@{vendor='Limiar';version='UEFI 0.6';date='09/24/2026';release='0.6'}
         }
     }
     Write-LimiarLabJson $profilePath $profile

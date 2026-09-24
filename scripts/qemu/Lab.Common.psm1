@@ -106,6 +106,20 @@ function ConvertTo-LimiarWindowsArgument {
     return $result.ToString()
 }
 
+function Resolve-LimiarLabCli {
+    param([hashtable]$Record, [string]$Root)
+    if (-not $Record.ContainsKey('cli_path')) { return Join-Path $Root 'target\release\limiar.exe' }
+    if (-not $Record.cli_path -or -not [IO.Path]::IsPathFullyQualified($Record.cli_path) -or
+        $Record.cli_sha256 -notmatch '^[0-9a-f]{64}$') { throw 'Invalid pinned lab CLI' }
+    $file = Get-Item -LiteralPath $Record.cli_path -ErrorAction Stop
+    if ($file -isnot [IO.FileInfo] -or $file.Extension -ine '.exe' -or
+        ($file.Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'Lab CLI must be a regular executable' }
+    if ((Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant() -ne $Record.cli_sha256) {
+        throw 'Lab CLI changed since this lab was prepared'
+    }
+    return $file.FullName
+}
+
 function Read-LimiarQemuLab {
     param([Parameter(Mandatory = $true)][string]$Path)
     $file = (Resolve-Path -LiteralPath $Path -ErrorAction Stop).Path
@@ -116,6 +130,7 @@ function Read-LimiarQemuLab {
     if ($record.directory -ne $directory -or $record.name -ne [IO.Path]::GetFileName($directory)) {
         throw 'QEMU lab directory or name mismatch'
     }
+    Assert-LimiarPrivateDirectory $directory
     if ($record.qmp_socket -ne (Join-Path $directory 'control\qmp.sock')) { throw 'Unexpected control socket path' }
     $owner = [guid]::Empty
     if (-not [guid]::TryParseExact($record.owner_token, 'D', [ref]$owner)) { throw 'Invalid lab owner token' }
@@ -130,7 +145,7 @@ function Read-LimiarQemuLab {
         throw 'QEMU lab directory cannot be a link or junction'
     }
     $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $cli = if ($record.cli_path) { $record.cli_path } else { Join-Path $root 'target\release\limiar.exe' }
+    $cli = Resolve-LimiarLabCli $record $root
     if ($record.registry_path -ne (Join-Path $root '.limiar\vms')) { throw 'Unexpected VM registry' }
     $registered = Invoke-LimiarCli $cli @('vm','show',$record.name,'--registry',$record.registry_path)
     if ($registered.created_at_unix_ms -ne $record.registry_created_at_unix_ms) {
