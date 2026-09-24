@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import re
+import tempfile
 import unittest
 from urllib.parse import unquote, urlsplit
 
@@ -24,7 +25,32 @@ def local_targets(document):
         parsed = urlsplit(href)
         if parsed.scheme or parsed.netloc:
             continue
-        yield href, (document.parent / unquote(parsed.path)).resolve()
+        target = document.parent / unquote(parsed.path) if parsed.path else document
+        yield href, target.resolve()
+
+
+class LocalTargetTests(unittest.TestCase):
+    """Keep local link resolution consistent with Markdown URL semantics."""
+
+    def test_fragment_only_link_targets_the_current_document(self):
+        """An in-page link must resolve to its file, not the parent directory."""
+        with tempfile.TemporaryDirectory() as temporary:
+            document = Path(temporary) / "guide.md"
+            document.write_text("[Section](#section)", encoding="utf-8")
+            self.assertEqual(
+                list(local_targets(document)), [("#section", document.resolve())]
+            )
+
+    def test_encoded_path_keeps_its_file_target_without_query_or_fragment(self):
+        """Decode relative paths while leaving URL query and fragment out of the path."""
+        with tempfile.TemporaryDirectory() as temporary:
+            document = Path(temporary) / "guide.md"
+            href = "other%20guide.md?view=raw#section"
+            document.write_text(f"[Other]({href})", encoding="utf-8")
+            self.assertEqual(
+                list(local_targets(document)),
+                [(href, (document.parent / "other guide.md").resolve())],
+            )
 
 
 class CoreContractDocumentationTests(unittest.TestCase):
