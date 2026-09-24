@@ -43,6 +43,8 @@ In another:
 
 `start` remains in the foreground and owns the runtime process tree. It is
 bounded by its timeout. This release does not install a background service.
+Serial output is captured in logs; these commands do not provide an interactive
+guest console yet.
 
 **`stop --force` terminates the runtime. It is not a graceful guest shutdown.**
 Unsaved guest state is lost, and writable disk images can require recovery.

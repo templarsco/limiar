@@ -62,7 +62,7 @@ and foreground VM supervision; it does not complete every item in this phase.
 - [x] Metadata-only unregister; no VM image deletion.
 - [x] Unit and CLI tests for registry safety and process control.
 - [x] Real Linux start/stop/restart validation through the managed commands.
-- [ ] Hosted Windows/Ubuntu CI and CodeQL for this development slice.
+- [x] Hosted Windows/Ubuntu CI and CodeQL for this development slice.
 - [ ] Guest-requested graceful shutdown and persistent disk management.
 - [ ] Windows 11 installation/boot, Secure Boot, and vTPM validation.
 

@@ -72,4 +72,16 @@ operations. The registry is trusted local metadata, not a sandbox for arbitrary
 host executables.
 
 Raw records, process identifiers, and logs remain under ignored `.limiar/`.
-Hosted CI results are tracked in the PR checks for this development slice.
+
+## Hosted Validation
+
+PR #3 validated application commit
+`5f70042dbe26d7472f0cf71f1f4fc7dd6b18ec95`:
+
+- [Limiar CI](https://github.com/templarsco/limiar/actions/runs/35938476827)
+  passed on Windows and Ubuntu.
+- [CodeQL](https://github.com/templarsco/limiar/actions/runs/35938475175)
+  completed successfully for Actions, C/C++, and Rust.
+
+Successful analysis execution is not a claim that every security finding has
+been reviewed or that the application is production-ready.
