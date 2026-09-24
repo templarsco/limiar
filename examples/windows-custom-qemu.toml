@@ -1,0 +1,40 @@
+# Existing, installed Windows QCOW2 image and a private copy of UEFI vars.
+# Basic display only; no GPU-PV, vTPM or verified Secure Boot.
+schema_version = 1
+name = "windows-custom-example"
+cpus = 4
+memory_mib = 8192
+
+[runtime]
+executable = "../.limiar/tools/qemu-w64-setup-20260811/qemu-system-x86_64.exe"
+
+[boot]
+kind = "qemu_uefi"
+firmware = "../.limiar/tools/qemu-w64-setup-20260811/share/edk2-x86_64-code.fd"
+variables = "../.limiar/images/private-windows-vars.fd"
+disk = "../.limiar/images/installed-windows.qcow2"
+cpu_model = "host"
+read_only_base = true
+headless = false
+
+[identity]
+preset = "limiar"
+
+[identity.bios]
+vendor = "Limiar"
+version = "UEFI 0.5"
+date = "09/24/2026"
+release = "0.5"
+
+[identity.baseboard]
+manufacturer = "Limiar"
+product = "Limiar Mainboard"
+version = "1.0"
+asset = "LMR-BOARD"
+location = "Mainboard"
+
+[identity.chassis]
+manufacturer = "Limiar"
+version = "Limiar Desktop"
+asset = "LMR-CHASSIS"
+sku = "LMR-DESKTOP"

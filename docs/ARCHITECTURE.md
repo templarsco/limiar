@@ -22,6 +22,7 @@ Limiar CLI
   |-- host inventory + WHP capability query (read-only)
   |-- explicit DXGI adapter -> bounded native D3D11 readback test
   |-- strict TOML + persisted identity -> supervised OpenVMM -> WHP -> guest
+  |-- JSON/TOML + Type 0/1/2/3 identity -> supervised QEMU -> WHPX -> Windows
   |-- explicit GPU-PV laboratory -> HCS -> disposable Linux guest
   `-- Windows lab scripts -> native Hyper-V -> persistent Windows guest
 ```
@@ -33,6 +34,24 @@ not the chosen product architecture. The Nitro inspiration is
 separation of responsibilities and constrained device paths, not a claim to
 reproduce AWS hardware offload in software.
 
+## QEMU Windows Reference
+
+Version 0.5 adds `qemu_uefi` to the same registry and supervisor. Its
+argument vector configures Q35, WHPX, explicit QCOW2 storage, per-VM UEFI
+variables, basic display/input and optional read-only optical media.
+No guest NIC or physical-device assignment is enabled. QMP is optional
+and binds only to loopback.
+
+The backend maps 22 SMBIOS Type 0/1/2/3 fields. Windows reads the firmware
+tables rather than guest registry substitutions. Startup reports carry
+CIM and raw `GetSystemFirmwareTable` data over COM1. Validation uses
+captured expectations and rejects ambiguous/truncated or duplicate reports.
+
+Lab controls bind registration creation time, input paths, QMP listener
+PID and machine name. Local credentials remain DPAPI-protected. The console
+is QEMU's SDL window, not Looking Glass or high-refresh streaming.
+[QEMU Windows](QEMU-WINDOWS.md) documents the workflow and trust boundary.
+
 ## Managed Lifecycle
 
 Version 0.2 adds a local registry of resolved configuration snapshots. Metadata
@@ -41,7 +60,7 @@ metadata mutations; a separate, long-lived per-VM lease identifies the active
 supervisor. Other operations try that lease without waiting while holding the
 registry lock.
 
-The foreground supervisor owns the OpenVMM process tree. Stop requests carry
+The foreground supervisor owns the selected runtime's process tree. Stop requests carry
 the active run identifier through a local control file. Persisted PIDs are
 informational and are never used to kill a process. A running record without a
 held lease is reported as interrupted.

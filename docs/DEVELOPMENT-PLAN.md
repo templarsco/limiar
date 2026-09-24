@@ -5,6 +5,10 @@ slice adds a persistent Windows 11 GPU-PV laboratory with verified Secure
 Boot/vTPM and repeated guest graphics tests, September 24, 2026. Later
 product milestones remain planned.
 
+Version 0.5 adds a QEMU/WHPX Windows reference with 22 verified identity
+fields and basic desktop output. Shared GPU acceleration is not integrated
+into that machine.
+
 ## Product
 
 Limiar targets QEMU-class ownership of a configurable PC, with useful
@@ -64,7 +68,7 @@ engineering tasks; their numbering does not put M3/M4 ahead of this gate.
   behavior on the Windows host.
 - [ ] Build a field-level coverage matrix, including the full reference
   SMBIOS input surface, and identify the owner of every implementation gap.
-- [ ] Prove Windows UEFI boot with distinct custom BIOS/system/baseboard/chassis
+- [x] Prove Windows UEFI boot with distinct custom BIOS/system/baseboard/chassis
   profiles, persistence and guest-side value verification.
 - [ ] Add accelerated presented graphics to that same configurable VM.
 - [ ] Validate input/audio and a repeatable interactive application session;
@@ -73,6 +77,10 @@ engineering tasks; their numbering does not put M3/M4 ahead of this gate.
   host graphics continuity, frame times and recovery.
 - [ ] Publish a candidate go/no-go decision. Advance another VMM or execution
   provider when necessary instead of declaring the existing lab sufficient.
+
+The identity/boot item is supported by the 0.5
+[Windows validation](validation/2026-09-24-windows-custom-identity.md).
+It does not close the accelerated-graphics or interactive-application gate.
 
 Exit criteria: one candidate demonstrates configurable Windows identity and
 accelerated interactive applications together, with its remaining coverage

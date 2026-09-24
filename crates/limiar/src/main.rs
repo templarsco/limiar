@@ -132,8 +132,10 @@ enum VmCommands {
     /// Start a registered VM under foreground supervision.
     Start {
         name: String,
-        #[arg(long, default_value_t = 120, value_parser = clap::value_parser!(u64).range(1..=3600))]
+        #[arg(long, default_value_t = 120, value_parser = clap::value_parser!(u64).range(1..=86400))]
         timeout_seconds: u64,
+        #[arg(long, conflicts_with_all = ["timeout_seconds", "smoke"], help = "Run until the guest exits or an explicit stop is requested")]
+        until_shutdown: bool,
         #[arg(long, default_value = ".limiar/runs")]
         logs: PathBuf,
         #[arg(long, help = "Stop after observing the configured serial marker")]
@@ -156,8 +158,14 @@ enum VmCommands {
     },
     Run {
         profile: PathBuf,
-        #[arg(long, default_value_t = 120, value_parser = clap::value_parser!(u64).range(1..=3600))]
+        #[arg(long, default_value_t = 120, value_parser = clap::value_parser!(u64).range(1..=86400))]
         timeout_seconds: u64,
+        #[arg(
+            long,
+            conflicts_with = "timeout_seconds",
+            help = "Run until the guest exits"
+        )]
+        until_shutdown: bool,
         #[arg(long, default_value = ".limiar/runs")]
         logs: PathBuf,
     },
@@ -257,8 +265,18 @@ fn dispatch_vm(command: VmCommands, root: &Path) -> Result<(Value, bool)> {
         VmCommands::Run {
             profile,
             timeout_seconds,
+            until_shutdown,
             logs,
-        } => run_profile(&profile, runner::Mode::Run, timeout_seconds, &logs),
+        } => run_profile(
+            &profile,
+            runner::Mode::Run,
+            if until_shutdown {
+                u64::MAX
+            } else {
+                timeout_seconds
+            },
+            &logs,
+        ),
         VmCommands::Smoke {
             profile,
             timeout_seconds,
@@ -297,6 +315,13 @@ fn dispatch_vm(command: VmCommands, root: &Path) -> Result<(Value, bool)> {
         } => {
             ensure!(cfg!(windows), "WHP execution currently requires Windows");
             let registry = Registry::open(root)?;
+            ensure!(
+                matches!(
+                    registry.show(&name)?.profile.boot,
+                    limiar::config::Boot::LinuxDirect { .. }
+                ),
+                "vm verify-identity requires the Linux direct probe; use scripts/qemu/Test-GuestIdentity.ps1 for Windows reports"
+            );
             let plan = registry.preview(&name)?;
             let expected = plan
                 .identity
@@ -334,6 +359,7 @@ fn dispatch_vm(command: VmCommands, root: &Path) -> Result<(Value, bool)> {
         VmCommands::Start {
             name,
             timeout_seconds,
+            until_shutdown,
             logs,
             smoke,
         } => {
@@ -346,7 +372,11 @@ fn dispatch_vm(command: VmCommands, root: &Path) -> Result<(Value, bool)> {
             let report = Registry::open(root)?.start(
                 &name,
                 mode,
-                Duration::from_secs(timeout_seconds),
+                Duration::from_secs(if until_shutdown {
+                    u64::MAX
+                } else {
+                    timeout_seconds
+                }),
                 &logs,
             )?;
             let success = report.success;

@@ -1,6 +1,6 @@
 #requires -Version 7.0
 [CmdletBinding()]
-param()
+param([string]$ArchivePath)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $pin = Get-Content -LiteralPath (Join-Path $root 'runtime\qemu.json') -Raw | ConvertFrom-Json
@@ -31,7 +31,11 @@ if (Test-Path -LiteralPath $directory) {
     $receipt | ConvertTo-Json -Depth 5
     return
 }
-$archive = Join-Path $tools $pin.archive
+$archive = if ($ArchivePath) {
+    (Resolve-Path -LiteralPath $ArchivePath -ErrorAction Stop).Path
+} else {
+    Join-Path $tools $pin.archive
+}
 if (-not (Test-Path -LiteralPath $archive)) {
     & (Join-Path $env:SystemRoot 'System32\curl.exe') --fail --location --retry 2 --proto '=https' `
         --output $archive $pin.url

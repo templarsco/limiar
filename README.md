@@ -22,19 +22,45 @@ See the [core contract and next acceptance gate](docs/CORE-CONTRACT.md).
 ## Current Implementation
 
 This is an early developer release, not a completed desktop hypervisor or a
-production-ready gaming VM. Version 0.4 adds a persistent **Windows 11
-GPU-PV laboratory**, with Secure Boot, vTPM and guest-side graphics verification.
-Configurable SMBIOS remains available through OpenVMM. Dedicated passthrough
-comes later.
+production-ready gaming VM. Version 0.5 adds a **bootable Windows identity
+reference using QEMU/WHPX**, with 22 configurable SMBIOS Type 0/1/2/3 fields,
+persistent disks/firmware variables and a local console. The earlier Windows
+GPU-PV lab, with Secure Boot/vTPM, remains a separate native Hyper-V fixture.
 
 Local validation: **11 SMBIOS fields matched inside Linux** and **10 GPU-PV
 D3D12 pixel-test cycles passed on an RX 9070 XT**, with the host graphics path
 checked before and after.
 
-The Windows 11 Pro guest now boots from a persistent VHDX and executes D3D11
+The separate native Hyper-V Windows 11 Pro guest boots from a persistent VHDX and executes D3D11
 clear/copy/readback on the shared RX 9070 XT. This is separate from the
 OpenVMM identity path and the disposable HCS Linux probe. **A Windows VM with
 full custom SMBIOS/CPUID/ACPI/PCI identity is not implemented.**
+
+## Configurable Windows VM
+
+The new backend uses the existing registry and owned-process supervisor.
+It supports strict JSON or TOML profiles. Local Windows validation matched
+all 22 exposed fields across four cold boots, including a changed profile
+and restoration of the Limiar preset.
+
+```powershell
+cargo build --release --locked
+.\scripts\Initialize-Qemu.ps1
+.\scripts\qemu\New-LabVm.ps1 -SourceDisk "C:\VMs\installed-windows.qcow2" -SourceFormat qcow2
+$custom = ".limiar/qemu/Limiar-Win11-Custom/lab.json"
+.\scripts\qemu\Start-LabVm.ps1 -LabPath $custom
+.\scripts\qemu\Stop-LabVm.ps1 -LabPath $custom
+```
+
+This imports an already installed, powered-off Windows disk; it does not
+install or activate Windows. The source is copied, not reassigned to the VM.
+Edit `identity` in the new lab's `profile.json` while stopped, then start
+again to apply it.
+
+**This machine has basic display output, not the shared RX 9070 XT.**
+The QEMU path does not carry over the native Hyper-V lab's Secure Boot/vTPM
+results. See the [workflow and limitations](docs/QEMU-WINDOWS.md) and
+[Windows identity validation](docs/validation/2026-09-24-windows-custom-identity.md).
 
 ## Windows 11 Lab
 
@@ -73,16 +99,16 @@ section keep their previous behavior.
 This recovers the identity checklist from the historical project and makes
 the implementation status explicit:
 
-| Surface | Fields | Status in 0.4 |
+| Surface | Fields | Status in 0.5 |
 |---|---|---|
-| SMBIOS 0: BIOS | Vendor, version, release date, major/minor release | Configurable and guest-verified with OpenVMM Linux direct boot |
-| SMBIOS 1: system | Manufacturer, product, version, serial, UUID, SKU, family | Configurable; all seven guest-verified on Linux |
-| SMBIOS 2: baseboard | Manufacturer, product, version, serial, asset tag | Not exposed by the pinned OpenVMM CLI |
-| SMBIOS 3: chassis | Manufacturer, type, version, serial, asset tag | Not exposed by the pinned OpenVMM CLI |
+| SMBIOS 0: BIOS | Vendor, version, release date, major/minor release | Verified in OpenVMM Linux direct boot and QEMU Windows |
+| SMBIOS 1: system | Manufacturer, product, version, serial, UUID, SKU, family | Verified in Linux and QEMU Windows |
+| SMBIOS 2: baseboard | Manufacturer, product, version, serial, asset tag, location | Configurable and verified in QEMU Windows |
+| SMBIOS 3: chassis | Manufacturer, version, serial, asset tag, SKU | Configurable and verified in QEMU Windows; chassis type itself is not exposed |
 | SMBIOS 4: processor | Socket, manufacturer, version, serial, asset and part information | Not implemented |
 | SMBIOS 9 / 11 / 41 | Slots, OEM strings and onboard devices | Not implemented |
 | SMBIOS binary entries | Explicit user-provided table data with validation | Not implemented |
-| CPU / CPUID / topology | Vendor, model, features, sockets, cores, threads | vCPU count configurable; arbitrary CPU identity is not implemented |
+| CPU / CPUID / topology | Vendor, model, features, sockets, cores, threads | vCPU count and QEMU CPU-model choices; arbitrary CPU identity is not implemented |
 | Memory / SMBIOS 16-17 | Capacity, slots, module identities, speed | Total VM memory configurable; DIMM identity is not implemented |
 | Firmware / clock | UEFI, RTC, Secure Boot, TPM, persistent variables | Windows lab has verified Secure Boot/vTPM; full firmware identity controls pending |
 | ACPI / PCI / devices | OEM/table IDs, topology, device IDs, bus information | Backend-generated, not fully customizable |
@@ -232,6 +258,7 @@ cargo test --workspace --all-targets --locked
 - [Local validation: Windows 11 and RX 9070 XT](docs/validation/2026-09-23-foundation.md)
 - [Managed VM lifecycle validation](docs/validation/2026-09-24-managed-vms.md)
 - [Identity and GPU-PV validation](docs/validation/2026-09-24-identity-gpu-pv.md)
+- [Windows custom identity validation](docs/validation/2026-09-24-windows-custom-identity.md)
 - [Contribution guide](CONTRIBUTING.md)
 
 Windows client device assignment is still an experiment. Limiar never disables
