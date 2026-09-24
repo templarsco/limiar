@@ -1,5 +1,8 @@
 # Shared GPU Laboratory
 
+This page covers the disposable HCS/Linux probe. Version 0.4 also provides a
+[persistent Windows lab](WINDOWS-LAB.md) with native Hyper-V management.
+
 GPU-PV is the first graphics workstream: share the GPU while retaining host
 use. Dedicated vPCI/DDA comes later, with separate recovery requirements.
 No Limiar command disables or dismounts the physical GPU.

@@ -1,8 +1,9 @@
 # Limiar Development Plan
 
-Status: foundation and managed lifecycle published; the 0.3 slice adds
-guest-verified identity and a shared GPU-PV Linux laboratory, September 24,
-2026. Later product milestones remain planned.
+Status: foundation, managed identity and Linux GPU-PV published. The 0.4
+slice adds a persistent Windows 11 GPU-PV laboratory with verified Secure
+Boot/vTPM and repeated guest graphics tests, September 24, 2026. Later
+product milestones remain planned.
 
 ## Product
 
@@ -73,7 +74,8 @@ and foreground VM supervision; it does not complete every item in this phase.
 - [x] Persistent Limiar/custom identity with explicit backend/boot restrictions.
 - [x] Linux guest verification of all eleven Type 0/1 fields and guest power-off.
 - [ ] Guest-requested graceful shutdown and persistent disk management.
-- [ ] Windows 11 installation/boot, Secure Boot, and vTPM validation.
+- [x] Windows 11 installation/boot, Secure Boot, and vTPM validation through native Hyper-V.
+- [x] Windows lab start/normal shutdown, persistent VHDX and protected local credentials.
 
 Deliverables:
 - Linux direct-boot and UEFI profiles with immutable input image hashes.
@@ -104,8 +106,9 @@ bounded D3D12 pixel readback are implemented and have local evidence.
 - [x] Verify 64x64 D3D12 clear/copy/readback on the requested hardware adapter.
 - [x] Observe guest graceful exit and confirm removal by HCS ID.
 - [x] Record ten share/use/cleanup cycles; native host graphics and active display routes unchanged.
-- [ ] Provision Windows media and the matching guest graphics driver.
-- [ ] Validate an interactive Windows desktop and guest graphics APIs.
+- [x] Provision selected Windows media and the matching guest graphics driver.
+- [x] Validate Windows desktop boot and D3D11 readback; other graphics APIs remain untested.
+- [x] Repeat three Windows cold boots with the GPU, Secure Boot/vTPM and host graphics checks.
 - [ ] Integrate identity controls and shared graphics into one supported backend.
 - [ ] Add resource controls, multiple guests, upgrade and recovery tests.
 

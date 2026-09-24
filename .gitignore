@@ -64,6 +64,8 @@ desktop.ini
 # Test artifacts
 *.log
 *.tmp
+__pycache__/
+*.py[cod]
 
 # Package files
 *.zip
