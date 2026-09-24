@@ -1,0 +1,43 @@
+name: QEMU Runtime Cache
+
+on:
+  push:
+    branches: [main, "codex/**", "mya/**"]
+    paths:
+      - runtime/qemu.json
+      - .github/workflows/qemu-runtime.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  installer:
+    name: Verify Public QEMU Installer
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download pinned upstream package
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$(jq -r .archive runtime/qemu.json)"
+          url="$(jq -r .url runtime/qemu.json)"
+          checksum="$(jq -r .sha512 runtime/qemu.json)"
+          [[ "$archive" =~ ^qemu-w64-setup-[0-9]{8}\.exe$ ]]
+          [[ "$url" == "https://qemu.weilnetz.de/w64/$archive" ]]
+          [[ "$checksum" =~ ^[0-9a-f]{128}$ ]]
+          mkdir -p "$RUNNER_TEMP/qemu-installer"
+          cd "$RUNNER_TEMP/qemu-installer"
+          curl --fail --location --retry 2 --max-time 600 --proto '=https' \
+            --output "$archive" "$url"
+          printf '%s  %s\n' "$checksum" "$archive" | sha512sum --check --strict -
+      - name: Cache verified original installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: qemu-windows-installer
+          path: ${{ runner.temp }}/qemu-installer/*.exe
+          compression-level: 0
+          retention-days: 3
+          if-no-files-found: error
