@@ -130,7 +130,7 @@ function Read-LimiarQemuLab {
         throw 'QEMU lab directory cannot be a link or junction'
     }
     $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-    $cli = Join-Path $root 'target\release\limiar.exe'
+    $cli = if ($record.cli_path) { $record.cli_path } else { Join-Path $root 'target\release\limiar.exe' }
     if ($record.registry_path -ne (Join-Path $root '.limiar\vms')) { throw 'Unexpected VM registry' }
     $registered = Invoke-LimiarCli $cli @('vm','show',$record.name,'--registry',$record.registry_path)
     if ($registered.created_at_unix_ms -ne $record.registry_created_at_unix_ms) {

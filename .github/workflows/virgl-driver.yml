@@ -1,0 +1,89 @@
+name: Experimental VirGL Driver Cache
+
+on:
+  push:
+    branches: ["mya/**", "codex/**"]
+    paths:
+      - runtime/virgl-windows.json
+      - .github/workflows/virgl-driver.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  driver:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify upstream archive and omit debug symbols
+        shell: python
+        run: |
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import shutil
+          import urllib.request
+          import zipfile
+
+          pin = json.loads(pathlib.Path("runtime/virgl-windows.json").read_text())
+          expected = (
+              "https://github.com/arehnman/yttrium-virtio-gpu/releases/download/"
+              "viogpu3d-2026-06-04/"
+              "kvm-guest-drivers-windows-viogpu3d-debug-2026-06-04.zip"
+          )
+          assert pin["url"] == expected
+          assert pin["sha256"] == "2b35ec6eedf71297db53a36dacab9a38dc0644aa2e116fa116f3217eeedff0a1"
+          root = pathlib.Path(os.environ["RUNNER_TEMP"]) / "virgl-driver"
+          root.mkdir()
+          archive = root / "upstream.zip"
+          digest = hashlib.sha256()
+          with urllib.request.urlopen(expected, timeout=60) as source, archive.open("xb") as target:
+              size = 0
+              while chunk := source.read(1024 * 1024):
+                  size += len(chunk)
+                  assert size <= 2 * 1024**3, "Archive exceeds expected bound"
+                  digest.update(chunk)
+                  target.write(chunk)
+          assert digest.hexdigest() == pin["sha256"], "Upstream checksum mismatch"
+          output = root / "payload"
+          output.mkdir()
+          files = []
+          seen = set()
+          total = 0
+          with zipfile.ZipFile(archive) as package:
+              for entry in package.infolist():
+                  name = pathlib.PurePosixPath(entry.filename)
+                  if entry.is_dir():
+                      continue
+                  if name.suffix.lower() not in {".sys", ".dll", ".inf", ".cat", ".cer", ".txt", ".md"}:
+                      continue
+                  assert not name.is_absolute() and ".." not in name.parts
+                  assert "\\" not in entry.filename and ":" not in entry.filename
+                  assert ((entry.external_attr >> 16) & 0o170000) != 0o120000
+                  folded = entry.filename.casefold()
+                  assert folded not in seen, "Duplicate Windows path"
+                  seen.add(folded)
+                  total += entry.file_size
+                  assert total <= 512 * 1024**2, "Selected payload exceeds bound"
+                  destination = output.joinpath(*name.parts)
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  with package.open(entry) as source, destination.open("xb") as target:
+                      shutil.copyfileobj(source, target)
+                  sha = hashlib.sha256(destination.read_bytes()).hexdigest()
+                  files.append({"path": entry.filename, "sha256": sha, "bytes": entry.file_size})
+          assert files, "No driver files found"
+          manifest = {"schema_version": 1, "source": pin, "files": files}
+          (output / "source.json").write_text(json.dumps(manifest, indent=2) + "\n")
+          print(json.dumps({"source_sha256": digest.hexdigest(), "files": len(files), "bytes": total}))
+          for item in files:
+              print(item["path"])
+      - uses: actions/upload-artifact@v4
+        with:
+          name: virgl-windows-experimental
+          path: ${{ runner.temp }}/virgl-driver/payload/
+          compression-level: 6
+          retention-days: 3
+          if-no-files-found: error

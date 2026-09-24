@@ -7,6 +7,10 @@ param(
     [ValidateRange(2,16)][int]$CpuCount = 4,
     [ValidateRange(4096,32768)][int]$MemoryMiB = 8192,
     [ValidateSet('host','compatible','max')][string]$CpuModel = 'host',
+    [ValidateSet('basic','virgl_experimental')][string]$Graphics = 'basic',
+    [ValidateSet('none','user_nat')][string]$Network = 'none',
+    [switch]$Audio,
+    [string]$CliPath,
     [string]$CredentialPath,
     [string]$ArchivePath
 )
@@ -14,11 +18,11 @@ $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot 'Lab.Common.psm1') -Force
 if ($Name -match '^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])$') { throw 'Reserved VM name' }
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$cli = Join-Path $root 'target\release\limiar.exe'
+$cli = if ($CliPath) { (Resolve-Path -LiteralPath $CliPath).Path } else { Join-Path $root 'target\release\limiar.exe' }
 if (-not (Test-Path -LiteralPath $cli -PathType Leaf)) { throw 'Build the release CLI first' }
 $version = & $cli --version
-if ($LASTEXITCODE -ne 0 -or [version]($version -replace '^limiar ', '') -lt [version]'0.5.0') {
-    throw 'QEMU profiles require Limiar 0.5 or later'
+if ($LASTEXITCODE -ne 0 -or [version]($version -replace '^limiar ', '') -lt [version]'0.6.0') {
+    throw 'New QEMU lab profiles require Limiar 0.6 or later'
 }
 $source = Get-Item -LiteralPath $SourceDisk -ErrorAction Stop
 if ($source -isnot [IO.FileInfo] -or $source.Length -eq 0) { throw 'Source must be an existing virtual disk file' }
@@ -58,7 +62,8 @@ $record = [ordered]@{
     qmp_socket=$socketPath
     runtime_path=$runtime.executable;runtime_sha256=$runtime.executable_sha256
     firmware_path=(Join-Path $runtime.directory 'share\edk2-x86_64-code.fd')
-    gpu_mode='basic_display';network='none';contains_private_credentials=($null -ne $credential)
+    cli_path=$cli;gpu_mode=$Graphics;network=$Network;audio=[bool]$Audio
+    contains_private_credentials=($null -ne $credential)
 }
 function Save-Record {
     Write-LimiarLabJson $recordPath $record
@@ -78,6 +83,7 @@ try {
         boot=[ordered]@{
             kind='qemu_uefi';firmware=$record.firmware_path;variables=$variables;disk=$disk
             cpu_model=$CpuModel;read_only_base=$false;headless=$false;qmp_socket=$socketPath
+            graphics=$Graphics;network=$Network;audio=[bool]$Audio
         }
         identity=@{
             preset='limiar'

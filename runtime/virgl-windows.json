@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "repository": "arehnman/yttrium-virtio-gpu",
+  "tag": "viogpu3d-2026-06-04",
+  "archive": "kvm-guest-drivers-windows-viogpu3d-debug-2026-06-04.zip",
+  "url": "https://github.com/arehnman/yttrium-virtio-gpu/releases/download/viogpu3d-2026-06-04/kvm-guest-drivers-windows-viogpu3d-debug-2026-06-04.zip",
+  "sha256": "2b35ec6eedf71297db53a36dacab9a38dc0644aa2e116fa116f3217eeedff0a1",
+  "status": "experimental_test_signed",
+  "guest_only": true,
+  "qualification": "Not qualified for Roblox or production use. This older VirGL/D3D10 path is distinct from the later Venus-based Yttrium and Neptune/Triton stacks."
+}
