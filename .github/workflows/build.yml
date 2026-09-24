@@ -40,6 +40,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pwsh -NoProfile -File ./tests/graphics_guards.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pwsh -NoProfile -File ./tests/qemu_media.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: ISO builder dependencies
         run: |
           python -m pip install --target target/test-python --require-hashes --only-binary=:all: -r runtime/windows-tools-requirements.txt

@@ -181,6 +181,70 @@ fn whp_query() -> Result<bool> {
     }
 }
 
+pub fn whp_device_capabilities() -> Result<crate::gpu_pv::WhpDeviceCapabilities> {
+    use crate::gpu_pv::{WhpDeviceCapabilities, WhpDeviceFeatures};
+    type Query = unsafe extern "system" fn(i32, *mut u64, u32, *mut u32) -> i32;
+    let path = system_directory()?.join("WinHvPlatform.dll");
+    let (features, exports) = unsafe {
+        let library = libloading::Library::new(path)?;
+        let query: libloading::Symbol<'_, Query> = library.get(b"WHvGetCapability\0")?;
+        let mut features = 0_u64;
+        let mut written = 0_u32;
+        let result = query(1, &mut features, 8, &mut written);
+        ensure!(
+            result >= 0,
+            "WHP device-capability query failed: 0x{:08x}",
+            result as u32
+        );
+        ensure!(
+            written == 8,
+            "unexpected WHP feature buffer size: {written}"
+        );
+        // Inspect exports only. Do not allocate a resource or modify a partition.
+        let names = [
+            "WHvAllocateVpciResource",
+            "WHvCreateVpciDevice",
+            "WHvDeleteVpciDevice",
+            "WHvGetVpciDeviceProperty",
+            "WHvReadVpciDeviceRegister",
+            "WHvWriteVpciDeviceRegister",
+            "WHvMapVpciDeviceMmioRanges",
+            "WHvUnmapVpciDeviceMmioRanges",
+            "WHvMapVpciDeviceInterrupt",
+            "WHvUnmapVpciDeviceInterrupt",
+            "WHvRetargetVpciDeviceInterrupt",
+            "WHvGetVpciDeviceNotification",
+        ];
+        let exports = names
+            .into_iter()
+            .map(|name| {
+                let symbol = format!("{name}\0");
+                let available = library
+                    .get::<unsafe extern "system" fn()>(symbol.as_bytes())
+                    .is_ok();
+                (name.to_owned(), available)
+            })
+            .collect();
+        (features, exports)
+    };
+    Ok(WhpDeviceCapabilities {
+        schema_version: 1,
+        scope: "read_only_whp_device_backend_capabilities",
+        hypervisor_present: whp_query()?,
+        feature_bits: format!("0x{features:016x}"),
+        features: WhpDeviceFeatures::from_bits(features),
+        vpci_api_exports: exports,
+        resource_allocation_attempted: false,
+        qemu_gpu_pv_bridge: "not_implemented_in_limiar",
+        limitations: vec![
+            "Generic vPCI/IOMMU features and API exports are not GPU-PV resource-provider validation.",
+            "No VM, physical device, GPU partition, host driver or boot setting was changed.",
+            "The existing HCS GPU-PV probe cannot attach its resource to an unrelated QEMU partition.",
+            "QEMU needs a compatible device transport and guest-driver path before this can enable GPU-PV.",
+        ],
+    })
+}
+
 fn host_inventory() -> Result<serde_json::Value> {
     use std::os::windows::process::CommandExt;
     let powershell = system_directory()?.join("WindowsPowerShell/v1.0/powershell.exe");

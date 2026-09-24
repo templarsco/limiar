@@ -5,6 +5,34 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+#[derive(Debug, Serialize, PartialEq, Eq)]
+pub struct WhpDeviceFeatures {
+    pub virtual_pci: bool,
+    pub iommu: bool,
+}
+
+impl WhpDeviceFeatures {
+    pub fn from_bits(bits: u64) -> Self {
+        Self {
+            virtual_pci: bits & (1 << 7) != 0,
+            iommu: bits & (1 << 8) != 0,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct WhpDeviceCapabilities {
+    pub schema_version: u32,
+    pub scope: &'static str,
+    pub hypervisor_present: bool,
+    pub feature_bits: String,
+    pub features: WhpDeviceFeatures,
+    pub vpci_api_exports: BTreeMap<String, bool>,
+    pub resource_allocation_attempted: bool,
+    pub qemu_gpu_pv_bridge: &'static str,
+    pub limitations: Vec<&'static str>,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Adapter {
@@ -226,6 +254,42 @@ pub fn render_verified(marker: Option<&str>, transcript: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn whp_device_features_preserve_independent_capability_bits() {
+        assert_eq!(
+            WhpDeviceFeatures::from_bits(0),
+            WhpDeviceFeatures {
+                virtual_pci: false,
+                iommu: false
+            }
+        );
+        assert_eq!(
+            WhpDeviceFeatures::from_bits(1 << 7),
+            WhpDeviceFeatures {
+                virtual_pci: true,
+                iommu: false
+            }
+        );
+        assert_eq!(
+            WhpDeviceFeatures::from_bits(1 << 8),
+            WhpDeviceFeatures {
+                virtual_pci: false,
+                iommu: true
+            }
+        );
+        assert_eq!(
+            WhpDeviceFeatures::from_bits((1 << 7) | (1 << 8)),
+            WhpDeviceFeatures {
+                virtual_pci: true,
+                iommu: true
+            }
+        );
+        assert_eq!(
+            WhpDeviceFeatures::from_bits((1 << 6) | (1 << 9) | (1 << 63)),
+            WhpDeviceFeatures::from_bits(0)
+        );
+    }
 
     fn adapter(name: &str, suffix: &str) -> Adapter {
         Adapter {

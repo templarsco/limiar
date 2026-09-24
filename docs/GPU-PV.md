@@ -101,6 +101,10 @@ boot inputs. The generated images remain local and are never CI artifacts.
 
 ## Remaining Work
 
+The [QEMU integration investigation](QEMU-GPU-PV.md) separates the validated
+HCS fixtures from the missing WHPX device transport and documents the
+read-only `gpu pv capabilities` command.
+
 - Windows installation and guest driver provisioning from selected media.
 - A repeatable Windows guest graphics test and interactive console.
 - Persistent HCS guest storage/state and explicit lifecycle ownership.

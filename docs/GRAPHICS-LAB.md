@@ -128,6 +128,11 @@ a native Windows viewer for the physical PC. The inspected B7/current client
 uses Linux display backends. A Windows client and compatible transport need
 their own implementation and tests. The present console is SDL/OpenGL.
 
+That work will use the [Limiar-owned fork](https://github.com/templarsco/LookingGlass);
+it is not waiting for an upstream Windows-client release. See the
+[QEMU GPU-PV backend investigation](QEMU-GPU-PV.md) for the separate device
+integration and the reusable OpenVMM components.
+
 Linux/SteamOS tests must independently establish desktop boot, Vulkan and
 gamescope requirements, input/audio and repeatable workload performance.
 OpenGL VirGL support alone is insufficient proof. Sharing and dedicated GPU

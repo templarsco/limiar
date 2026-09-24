@@ -64,6 +64,8 @@ enum GpuCommands {
 
 #[derive(Subcommand)]
 enum GpuPvCommands {
+    /// Inspect WHP vPCI/IOMMU feature bits and API exports without allocating devices.
+    Capabilities,
     /// Query advertised partitionable GPUs without changing the host.
     List,
     /// Preview an exact-adapter HCS request. Creates no VM.
@@ -211,6 +213,10 @@ fn dispatch(command: Commands) -> Result<(Value, bool)> {
 
 fn dispatch_gpu_pv(command: GpuPvCommands) -> Result<(Value, bool)> {
     match command {
+        GpuPvCommands::Capabilities => Ok((
+            serde_json::to_value(platform::whp_device_capabilities()?)?,
+            true,
+        )),
         GpuPvCommands::List => {
             let inventory = platform::gpu_pv_inventory()?;
             let queried = inventory.status == "queried";

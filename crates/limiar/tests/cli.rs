@@ -420,3 +420,12 @@ fn graphics_demo_rejects_unbounded_or_missing_arguments_before_accessing_hardwar
         assert!(result.stdout.is_empty());
     }
 }
+
+#[test]
+fn whp_capabilities_are_a_distinct_read_only_command() {
+    let result = cli(&["gpu", "pv", "capabilities", "--help"]);
+    assert!(result.status.success());
+    let text = String::from_utf8(result.stdout).unwrap();
+    assert!(text.contains("without allocating devices"));
+    assert!(!text.contains("--experimental"));
+}
