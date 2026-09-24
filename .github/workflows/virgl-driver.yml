@@ -79,7 +79,7 @@ jobs:
                       continue
                   if driver_root not in name.parents and name.name.lower() != "virtiotestcert.cer":
                       continue
-                  if name.suffix.lower() not in {".sys", ".dll", ".inf", ".cat", ".cer", ".txt", ".md"}:
+                  if name.suffix.lower() not in {".sys", ".dll", ".inf", ".cat", ".cer", ".json", ".txt", ".md"}:
                       continue
                   assert not name.is_absolute() and ".." not in name.parts
                   assert "\\" not in entry.filename and ":" not in entry.filename
@@ -89,7 +89,7 @@ jobs:
                   seen.add(folded)
                   total += entry.file_size
                   print(f"Selected {entry.file_size} bytes: {entry.filename}", flush=True)
-                  assert total <= 2 * 1024**3, "Selected payload exceeds bound"
+                  assert total <= 6 * 1024**3, "Selected payload exceeds bound"
                   destination = output.joinpath(*name.parts)
                   destination.parent.mkdir(parents=True, exist_ok=True)
                   with package.open(entry) as source, destination.open("xb") as target:
