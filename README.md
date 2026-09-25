@@ -27,6 +27,11 @@ reference using QEMU/WHPX**, with 22 configurable SMBIOS Type 0/1/2/3 fields,
 persistent disks/firmware variables and a local console. The earlier Windows
 GPU-PV lab, with Secure Boot/vTPM, remains a separate native Hyper-V fixture.
 
+Version 0.6 adds an **experimental QEMU/VirGL lab**, opt-in NAT/output audio,
+and a bounded D3D11 presentation probe. A recognized virtual GPU is not a
+rendering pass: Windows-driver and application qualification remain in
+progress. See the [graphics lab and current limits](docs/GRAPHICS-LAB.md).
+
 Local validation: **11 SMBIOS fields matched inside Linux** and **10 GPU-PV
 D3D12 pixel-test cycles passed on an RX 9070 XT**, with the host graphics path
 checked before and after.
@@ -61,6 +66,11 @@ again to apply it.
 The QEMU path does not carry over the native Hyper-V lab's Secure Boot/vTPM
 results. See the [workflow and limitations](docs/QEMU-WINDOWS.md) and
 [Windows identity validation](docs/validation/2026-09-24-windows-custom-identity.md).
+
+The optional `virgl_experimental` display path preserves the same identity
+configuration, but needs a separately prepared guest driver and a compatible
+renderer. It is not GPU-PV, does not imply Roblox support, and does not yet
+provide a Windows Looking Glass client.
 
 ## Windows 11 Lab
 

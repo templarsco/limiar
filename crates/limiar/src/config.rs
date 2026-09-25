@@ -34,6 +34,22 @@ pub enum QemuCpuModel {
     Max,
 }
 
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum QemuGraphics {
+    #[default]
+    Basic,
+    VirglExperimental,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum QemuNetwork {
+    #[default]
+    None,
+    UserNat,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Boot {
@@ -55,6 +71,12 @@ pub enum Boot {
         disk: PathBuf,
         #[serde(default)]
         cpu_model: QemuCpuModel,
+        #[serde(default)]
+        graphics: QemuGraphics,
+        #[serde(default)]
+        network: QemuNetwork,
+        #[serde(default)]
+        audio: bool,
         cdrom: Option<PathBuf>,
         #[serde(default = "default_read_only")]
         read_only_base: bool,
@@ -117,6 +139,15 @@ impl VmConfig {
             "memory_mib must be 128..262144"
         );
         validate_name(&self.name)?;
+        if let Boot::QemuUefi {
+            graphics, headless, ..
+        } = &self.boot
+        {
+            ensure!(
+                !(*headless && *graphics == QemuGraphics::VirglExperimental),
+                "experimental VirGL requires a visible SDL OpenGL display"
+            );
+        }
         if let Some(identity) = &self.identity {
             if matches!(self.boot, Boot::QemuUefi { .. }) {
                 identity.validate_qemu()?;
@@ -221,6 +252,9 @@ impl VmConfig {
                 variables,
                 disk,
                 cpu_model,
+                graphics,
+                network,
+                audio,
                 cdrom,
                 read_only_base,
                 headless,
@@ -268,15 +302,32 @@ impl VmConfig {
                     "-device".into(),
                     "ide-hd,drive=os,bus=ide.0,bootindex=1".into(),
                     "-device".into(),
-                    "VGA,vgamem_mb=32,xres=1280,yres=720".into(),
+                    match graphics {
+                        QemuGraphics::Basic => "VGA,vgamem_mb=32,xres=1280,yres=720",
+                        QemuGraphics::VirglExperimental => {
+                            "virtio-vga-gl,xres=1280,yres=720,max_outputs=1"
+                        }
+                    }
+                    .into(),
                     "-device".into(),
                     "qemu-xhci".into(),
                     "-device".into(),
                     "usb-tablet".into(),
                     "-display".into(),
-                    if *headless { "none" } else { "sdl,gl=off" }.into(),
+                    if *headless {
+                        "none"
+                    } else if *graphics == QemuGraphics::VirglExperimental {
+                        "sdl,gl=on"
+                    } else {
+                        "sdl,gl=off"
+                    }
+                    .into(),
                     "-nic".into(),
-                    "none".into(),
+                    match network {
+                        QemuNetwork::None => "none",
+                        QemuNetwork::UserNat => "user,model=e1000e,ipv6=off",
+                    }
+                    .into(),
                     "-serial".into(),
                     "stdio".into(),
                     "-monitor".into(),
@@ -284,6 +335,16 @@ impl VmConfig {
                     "-rtc".into(),
                     "base=localtime".into(),
                 ];
+                if *audio {
+                    arguments.extend([
+                        "-audiodev".into(),
+                        "dsound,id=audio0".into(),
+                        "-device".into(),
+                        "intel-hda".into(),
+                        "-device".into(),
+                        "hda-output,audiodev=audio0".into(),
+                    ]);
+                }
                 if *read_only_base {
                     arguments.push("-snapshot".into());
                 }
@@ -604,6 +665,87 @@ preset = "limiar"
             .unwrap();
         assert!(plan.arguments.iter().any(|arg| arg == "-snapshot"));
         assert!(!plan.arguments.iter().any(|arg| arg == "-qmp"));
+        assert!(!plan.arguments.iter().any(|arg| arg == "-audiodev"));
+        assert!(!plan.arguments.iter().any(|arg| arg.contains("hostfwd")));
+        assert!(
+            plan.arguments
+                .windows(2)
+                .any(|args| args == ["-nic", "none"])
+        );
+        assert!(plan.arguments.iter().any(|arg| arg.starts_with("VGA,")));
+    }
+
+    #[test]
+    fn virgl_is_explicit_and_preserves_custom_identity_without_claiming_gpu_assignment() {
+        let text = QEMU_PROFILE.replace(
+            "headless = true",
+            "headless = false\ngraphics = \"virgl_experimental\"",
+        );
+        let mut config = VmConfig::parse(&text).unwrap();
+        config.materialize_identity(None).unwrap();
+        let plan = config.plan(Path::new("/tmp")).unwrap();
+        assert!(!plan.gpu_assignment);
+        assert_eq!(plan.identity.unwrap().expected_dmi.len(), 22);
+        assert!(
+            plan.arguments
+                .windows(2)
+                .any(|args| args == ["-display", "sdl,gl=on"])
+        );
+        assert_eq!(
+            plan.arguments
+                .iter()
+                .filter(|arg| arg.starts_with("virtio-vga-gl,"))
+                .count(),
+            1
+        );
+        assert!(!plan.arguments.iter().any(|arg| arg.starts_with("VGA,")));
+        assert!(!plan.arguments.iter().any(|arg| arg.contains("venus=on")));
+        assert!(!plan.arguments.iter().any(|arg| arg == "-audiodev"));
+        assert!(
+            plan.arguments
+                .windows(2)
+                .any(|args| args == ["-nic", "none"])
+        );
+    }
+
+    #[test]
+    fn qemu_connectivity_and_output_only_audio_are_independent_opt_ins() {
+        let text = QEMU_PROFILE.replace(
+            "headless = true",
+            "headless = false\nnetwork = \"user_nat\"\naudio = true",
+        );
+        let plan = VmConfig::parse(&text)
+            .unwrap()
+            .plan(Path::new("/tmp"))
+            .unwrap();
+        assert!(
+            plan.arguments
+                .windows(2)
+                .any(|args| { args == ["-nic", "user,model=e1000e,ipv6=off"] })
+        );
+        assert!(
+            plan.arguments
+                .windows(2)
+                .any(|args| { args == ["-device", "hda-output,audiodev=audio0"] })
+        );
+        assert!(!plan.arguments.iter().any(|arg| {
+            arg.contains("hostfwd") || arg.contains("guestfwd") || arg.contains("duplex")
+        }));
+        assert!(plan.arguments.iter().any(|arg| arg.starts_with("VGA,")));
+    }
+
+    #[test]
+    fn qemu_rejects_headless_virgl_and_arbitrary_device_options() {
+        for option in [
+            "graphics = \"virgl_experimental\"",
+            "graphics = \"virgl,venus=on\"",
+            "network = \"user,hostfwd=tcp::3389-:3389\"",
+            "audio = \"duplex\"",
+        ] {
+            let text =
+                QEMU_PROFILE.replace("headless = true", &format!("headless = true\n{option}"));
+            assert!(VmConfig::parse(&text).is_err(), "{option}");
+        }
     }
 
     #[test]

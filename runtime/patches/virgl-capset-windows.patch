@@ -1,0 +1,49 @@
+diff --git a/src/virgl_capset.h b/src/virgl_capset.h
+new file mode 100644
+index 0000000..f717fa3
+--- /dev/null
++++ b/src/virgl_capset.h
+@@ -0,0 +1,17 @@
++/* SPDX-License-Identifier: MIT */
++#ifndef VIRGL_CAPSET_H
++#define VIRGL_CAPSET_H
++
++#ifdef _WIN32
++/* Wire protocol IDs do not require the Unix DRM ioctl declarations. */
++#define VIRTGPU_DRM_CAPSET_VIRGL 1
++#define VIRTGPU_DRM_CAPSET_VIRGL2 2
++#define VIRTGPU_DRM_CAPSET_GFXSTREAM_VULKAN 3
++#define VIRTGPU_DRM_CAPSET_VENUS 4
++#define VIRTGPU_DRM_CAPSET_CROSS_DOMAIN 5
++#define VIRTGPU_DRM_CAPSET_DRM 6
++#else
++#include "virtgpu_drm.h"
++#endif
++
++#endif
+diff --git a/src/virglrenderer.c b/src/virglrenderer.c
+index 2e64d82..a16209c 100644
+--- a/src/virglrenderer.c
++++ b/src/virglrenderer.c
+@@ -51,7 +51,7 @@
+ #endif
+ 
+ #include "virglrenderer.h"
+-#include "virtgpu_drm.h"
++#include "virgl_capset.h"
+ 
+ #include "virgl_context.h"
+ #include "virgl_fence.h"
+diff --git a/src/vrend/vrend_renderer.c b/src/vrend/vrend_renderer.c
+index feae801..51cbb69 100644
+--- a/src/vrend/vrend_renderer.c
++++ b/src/vrend/vrend_renderer.c
+@@ -61,7 +61,7 @@
+ #include "virglrenderer.h"
+ #include "virgl_protocol.h"
+ #include "virgl_fence.h"
+-#include "virtgpu_drm.h"
++#include "virgl_capset.h"
+ 
+ #include "tgsi/tgsi_text.h"
+ 

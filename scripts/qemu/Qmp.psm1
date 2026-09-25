@@ -37,7 +37,8 @@ function Invoke-LimiarQmp {
         [Parameter(Mandatory = $true)][ValidateRange(1,2147483647)][int]$ProcessId,
         [Parameter(Mandatory = $true)][string]$Name,
         [Parameter(Mandatory = $true)]
-        [ValidateSet('query-status','screendump','system_powerdown','send-key','input-send-event','query-cpus-fast')]
+        [ValidateSet('query-status','screendump','system_powerdown','send-key','input-send-event','query-cpus-fast',
+            'query-block','blockdev-change-medium')]
         [string]$Command,
         [hashtable]$Arguments = @{}
     )

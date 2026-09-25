@@ -9,6 +9,9 @@ pub mod runner;
 mod hcs;
 
 #[cfg(windows)]
+mod presentation;
+
+#[cfg(windows)]
 #[path = "windows.rs"]
 pub mod platform;
 

@@ -30,10 +30,17 @@ pub fn gpu_pv_inventory() -> anyhow::Result<crate::gpu_pv::Inventory> {
     anyhow::bail!("GPU-PV host inventory currently requires Windows")
 }
 
+pub fn whp_device_capabilities() -> anyhow::Result<crate::gpu_pv::WhpDeviceCapabilities> {
+    anyhow::bail!("WHP device-backend capability inventory requires Windows")
+}
+
 pub fn gpu_pv_probe(
     _plan: &crate::gpu_pv::ProbePlan,
     _timeout: std::time::Duration,
     _logs: &std::path::Path,
 ) -> anyhow::Result<crate::gpu_pv::ProbeReport> {
     anyhow::bail!("HCS GPU-PV execution requires Windows")
+}
+pub fn gpu_demo(_selector: &str, _seconds: u16) -> anyhow::Result<serde_json::Value> {
+    anyhow::bail!("The D3D11 presentation probe requires Windows")
 }

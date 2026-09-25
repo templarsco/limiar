@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "repository": "arehnman/yttrium-virtio-gpu",
+  "tag": "viogpu3d-debug-2026-03-15",
+  "url": "https://github.com/arehnman/yttrium-virtio-gpu/releases/download/viogpu3d-debug-2026-03-15/kvm-guest-drivers-windows-viogpu3d-debug-2026-03-15.zip",
+  "sha256": "33151648f83e2d8203d9954d39a4eaff02e66a7bb566dc5836cc8ae63868f219",
+  "driver_directory": "Install_Debug/Win10/amd64",
+  "status": "experimental_test_signed",
+  "guest_only": true,
+  "qualification": "Older, smaller x64 VirGL/D3D10 reference for laboratory testing, not the latest upstream driver. Windows 11 and application compatibility require local validation."
+}

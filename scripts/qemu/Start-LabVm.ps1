@@ -46,7 +46,11 @@ try {
         Start-Sleep -Milliseconds 200
         $status = Get-LimiarQemuStatus $lab
         if ($status.supervisor_active -and $status.state -eq 'running') {
-            [ordered]@{status='running';name=$lab.Record.name;run_directory=$run;graphics='basic_display'} | ConvertTo-Json
+            $graphics = if ($updated.profile.boot.graphics) { $updated.profile.boot.graphics } else { 'basic' }
+            [ordered]@{
+                status='running';name=$lab.Record.name;run_directory=$run;graphics=$graphics
+                guest_acceleration_verified=$false
+            } | ConvertTo-Json
             return
         }
         if ($process.HasExited) { throw "QEMU startup failed; inspect $run" }
