@@ -34,6 +34,9 @@ jobs:
       - name: Neutral Limiar metadata reference tests
         shell: pwsh
         run: pwsh -NoProfile -File ./tests/openhcl_limiar_profile.ps1
+      - name: Public GPU tutorial examples (mock providers)
+        shell: pwsh
+        run: pwsh -NoProfile -File ./tests/gpu_tutorial.ps1
       - name: Windows SMBIOS report parser tests
         shell: pwsh
         run: |

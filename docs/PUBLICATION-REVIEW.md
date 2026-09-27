@@ -21,9 +21,9 @@ as the intended public scope, and Looking Glass as the only complete
 public deliverable, as described below.
 
 This document defines the review gate. The owner authorized the selected
-September 27 source-reference update; that approval does not extend to
-the entire working tree, private firmware or later releases. Local
-research records are not automatically release-ready, and publication
+September 27 source-reference update and the later selected GPU tutorial;
+that approval does not extend to the entire working tree, private firmware
+or later releases. Local research records are not automatically release-ready, and publication
 controls cannot guarantee prevention of misuse.
 
 ## Licensing Gate
@@ -52,6 +52,7 @@ checks are not a legal opinion or clearance of the entire worktree.
 |---|---|
 | Neutral Limiar firmware base | Selected project-named profile, metadata generator and tests, authorized for this limited source update with GitHub platform rights preserved; no firmware image, producer patches or turnkey build |
 | Feasibility evidence | A concise account that custom guest firmware/SMBIOS and native GPU-PV can coexist in one guest; only measured capabilities and their limits |
+| GPU tutorial | Reviewed GPU-PV setup/validation and conditional DDA reference with generic examples, official sources and mock tests; no private collectors, instance IDs, raw receipts, vendor binaries or firmware |
 | Looking Glass integration | Complete guest capture integration, transport, physical-Windows viewer, input path, build, tests and documentation under compatible upstream GPL terms; no no-sale/no-redistribution condition on the GPL work |
 | Lab firmware and broader study | Private: real-machine-model profiles, experimental images, detailed investigations, raw evidence and private environment data |
 
@@ -137,5 +138,6 @@ dependency or patch. A public URL is not a redistribution license.
 
 The review must happen against the actual release candidate. This
 September 27 authorization is limited to the selected source-reference
-update. Future commits or release uploads still require a scoped review
-and owner instruction; no private study or image is included implicitly.
+update and [GPU tutorial](GPU-PV-E-DDA.md). Future commits or release uploads
+still require a scoped review and owner instruction; no private study or
+image is included implicitly.

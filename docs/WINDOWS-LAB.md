@@ -1,5 +1,10 @@
 # Windows 11 GPU-PV Lab
 
+Historical stock Hyper-V fixture, not an OpenHCL provisioning procedure.
+See the [current GPU-PV and DDA guide](GPU-PV-E-DDA.md) before adapting it
+to an existing VM. The helpers here enforce a separate ownership contract,
+one disk and no network; do not bypass those checks for a different VM.
+
 This development workflow installs a persistent Windows VM and verifies GPU
 work from inside it. It uses native Hyper-V management, not the OpenVMM
 profile registry or the disposable HCS Linux probe.
@@ -70,6 +75,12 @@ existing owner, edition and credentials instead of generating new secrets.
 The raw XML template is not deployment media; use the preparation script.
 
 ## Driver And GPU
+
+`Prepare-GpuDriver.ps1` collects only the selected main driver package.
+For AMD packages with separate OpenGL libraries, this is not a complete
+payload: discover and verify the active companion as described in the
+[updated guide](GPU-PV-E-DDA.md#amd-opengl-e-erro-126). Do not infer OpenGL
+support from the D3D11 checks below.
 
 After the guest has a configured user and its bootstrap has completed:
 

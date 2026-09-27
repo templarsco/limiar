@@ -39,6 +39,10 @@ This demonstrates more than changing a VM display name or guest registry
 label. It does not establish equivalence to physical hardware, protection
 from every guest-to-host vulnerability or support for every application.
 
+The [GPU-PV and DDA guide](GPU-PV-E-DDA.md) describes the selected public
+setup and validation reference. It separates working experimental GPU-PV
+from dedicated DDA, which is not validated in this OpenHCL configuration.
+
 ## Selected Source Reference
 
 The [neutral Limiar base](LIMIAR-FIRMWARE-BASE.md) includes an editable

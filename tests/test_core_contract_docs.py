@@ -25,12 +25,15 @@ LICENSING_DOCUMENTS = (
     Path("docs/PUBLICATION-REVIEW.md"),
     Path("docs/LIMIAR-FIRMWARE-BASE.md"),
     Path("docs/OPENHCL-COMPATIBILITY.md"),
+    Path("docs/GPU-PV-E-DDA.md"),
 )
 RESTRICTED_FILES = {
+    "docs/GPU-PV-E-DDA.md",
     "docs/LIMIAR-FIRMWARE-BASE.md",
     "docs/PUBLICATION-REVIEW.md",
     "profiles/openhcl/limiar-reference.json",
     "scripts/openhcl/Firmware.psm1",
+    "tests/gpu_tutorial.ps1",
     "tests/openhcl_limiar_profile.ps1",
 }
 
@@ -124,6 +127,36 @@ class CoreContractDocumentationTests(unittest.TestCase):
                 text = (ROOT / relative).read_text(encoding="utf-8")
                 self.assertIn("AWS Nitro", text)
                 self.assertIn("https://aws.amazon.com/ec2/nitro/", INLINE_LINK.findall(text))
+
+
+class GpuTutorialDocumentationTests(unittest.TestCase):
+    """Keep the public GPU guide discoverable without private lab dependencies."""
+
+    def test_current_and_historical_entry_points_link_the_guide(self):
+        guide = ROOT / "docs/GPU-PV-E-DDA.md"
+        for relative in (
+            "README.md",
+            "docs/GPU-PV.md",
+            "docs/WINDOWS-LAB.md",
+            "docs/OPENHCL-COMPATIBILITY.md",
+        ):
+            with self.subTest(document=relative):
+                self.assertIn(guide, {target for _, target in local_targets(ROOT / relative)})
+
+    def test_public_guide_links_stay_in_the_public_checkout(self):
+        guide = ROOT / "docs/GPU-PV-E-DDA.md"
+        for href, target in local_targets(guide):
+            with self.subTest(link=href):
+                self.assertTrue(target.is_relative_to(ROOT))
+                self.assertTrue(target.is_file())
+                self.assertNotIn(".limiar", target.relative_to(ROOT).parts)
+        for href in INLINE_LINK.findall(guide.read_text(encoding="utf-8")):
+            self.assertNotRegex(href, r"^[A-Za-z]:[/\\]")
+            self.assertFalse(href.startswith("file:"))
+
+    def test_tutorial_mock_checks_are_in_ci(self):
+        workflow = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
+        self.assertIn("pwsh -NoProfile -File ./tests/gpu_tutorial.ps1", workflow)
 
 
 class ComponentLicensingTests(unittest.TestCase):

@@ -5,10 +5,12 @@
   "effective_date": "2026-09-27",
   "scope": "Copyrightable original Limiar material only; existing and third-party license grants are preserved.",
   "files": [
+    "docs/GPU-PV-E-DDA.md",
     "docs/LIMIAR-FIRMWARE-BASE.md",
     "docs/PUBLICATION-REVIEW.md",
     "profiles/openhcl/limiar-reference.json",
     "scripts/openhcl/Firmware.psm1",
+    "tests/gpu_tutorial.ps1",
     "tests/openhcl_limiar_profile.ps1"
   ]
 }

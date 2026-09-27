@@ -59,8 +59,8 @@ Source-available is not the same as open source or confidential. A license
 does not technically prevent copying. GitHub's terms also grant platform
 viewing and forking rights when the copyright holder makes a repository
 public. Do not promise an absolute no-fork rule for a public GitHub repo.
-The owner authorized this limited public source-reference update on
-September 27, 2026, with those platform rights preserved by section 4 of
+The owner authorized the limited public source reference and selected GPU
+tutorial on September 27, 2026, with those platform rights preserved by section 4 of
 the Limiar license. The separate license does not grant general sale or
 redistribution rights beyond its exceptions and independently granted
 rights. The lab firmware and broader study remain private. Future content

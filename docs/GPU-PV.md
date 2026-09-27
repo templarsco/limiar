@@ -1,5 +1,10 @@
 # Shared GPU Laboratory
 
+Historical HCS/Linux workflow. For the active native OpenHCL direction,
+read the [GPU-PV and DDA guide](GPU-PV-E-DDA.md), including Windows support
+limits and the separate AMD OpenGL companion package. The remaining work
+below belongs to this older fixture, not the current project-wide status.
+
 This page covers the disposable HCS/Linux probe. Version 0.4 also provides a
 [persistent Windows lab](WINDOWS-LAB.md) with native Hyper-V management.
 
