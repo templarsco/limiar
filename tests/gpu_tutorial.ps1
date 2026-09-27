@@ -51,12 +51,12 @@ function Assert-Stops([string]$Code,[string]$Expected) {
 }
 
 $script:mockProductType = 1
-Assert-Stops $blocks[1].Groups['code'].Value 'Preencha o GUID da VM, a interface exata e a versao do driver'
-Assert-Stops $blocks[2].Groups['code'].Value 'Validar payload e backup antes da anexacao'
-Assert-Stops $blocks[4].Groups['code'].Value 'Este fluxo DDA requer host Windows Server suportado'
+Assert-Stops $blocks[1].Groups['code'].Value 'Enter the VM GUID, exact interface, and driver version'
+Assert-Stops $blocks[2].Groups['code'].Value 'Validate the payload and backup before attachment'
+Assert-Stops $blocks[4].Groups['code'].Value 'This DDA workflow requires a supported Windows Server host'
 $script:mockProductType = 3
-Assert-Stops $blocks[4].Groups['code'].Value 'Concluir os requisitos DDA primeiro'
-Assert-Stops $blocks[5].Groups['code'].Value 'Conferir o recibo da tentativa DDA antes do retorno'
+Assert-Stops $blocks[4].Groups['code'].Value 'Complete the DDA prerequisites first'
+Assert-Stops $blocks[5].Groups['code'].Value 'Check the DDA attempt receipt before returning the device'
 
 $selectionStatements = @($asts[1].EndBlock.Statements)
 $partitionChecks = $selectionStatements[-1].Extent.Text
@@ -72,9 +72,9 @@ function Test-ExistingPartition([int]$Count,[bool]$Same,[string]$Expected) {
     Assert-True ($observed -ceq $Expected) 'Existing-partition behavior changed'
 }
 Test-ExistingPartition 0 $true ''
-Test-ExistingPartition 1 $true 'GPU-PV ja anexada: validar o guest, sem anexar novamente.'
-Test-ExistingPartition 1 $false 'Atribuicao existente diferente: revisar sem remover automaticamente'
-Test-ExistingPartition 2 $true 'Atribuicao existente diferente: revisar sem remover automaticamente'
+Test-ExistingPartition 1 $true 'GPU-PV is already attached: validate the guest without attaching it again.'
+Test-ExistingPartition 1 $false 'A different assignment exists: review it without automatic removal'
+Test-ExistingPartition 2 $true 'A different assignment exists: review it without automatic removal'
 
 $selectionFunctions = @($asts[1].FindAll({param($node)
     $node -is [Management.Automation.Language.FunctionDefinitionAst]
@@ -89,7 +89,7 @@ function Test-VmSelection([bool]$Same) {
     if ($Same) {
         Assert-True ((Get-SelectedVm).Id -eq $vmId) 'Correct VM identity rejected'
     } else {
-        Assert-Stops 'Get-SelectedVm' 'O nome da VM nao corresponde ao GUID'
+        Assert-Stops 'Get-SelectedVm' 'The VM name does not match the GUID'
     }
 }
 Test-VmSelection $true
@@ -111,7 +111,7 @@ function Test-GpuSelection([int]$Count,[string]$Status,[string]$Version,[bool]$E
     if ($ExpectedPass) {
         Assert-True ((Get-SelectedGpu).device_interface -ceq $selectedInterface) 'Exact GPU rejected'
     } else {
-        Assert-Stops 'Get-SelectedGpu' 'GPU ausente, ambigua ou com driver diferente do preparado'
+        Assert-Stops 'Get-SelectedGpu' 'GPU is missing, ambiguous, or has a different driver than the prepared version'
     }
 }
 Test-GpuSelection 1 'queried' '1.2.3.4' $true
@@ -146,6 +146,6 @@ foreach ($forbidden in @('C:\Users\','C:/Users/','.limiar/reviews/','.limiar\rev
 }
 Assert-True ($text -cnotmatch '[0-9a-fA-F]{64}') 'Private artifact hash should not be published in this guide'
 Assert-True ($text.Contains('HostDriverStore') -and $text.Contains('amdogl.inf_amd64_<id>')) 'AMD companion guidance missing'
-Assert-True ($text.Contains('DDA ainda nao foi validado')) 'DDA status is not explicit'
+Assert-True ($text.Contains('DDA has not yet been validated')) 'DDA status is not explicit'
 Assert-True ($text.Contains('tests/gpu_tutorial.ps1')) 'Tutorial should link its executable checks'
 [ordered]@{passed=$script:assertions;powershell_examples=$blocks.Count;real_vm_operations=0;gpu_tests_run=0} | ConvertTo-Json

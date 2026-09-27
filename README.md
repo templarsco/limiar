@@ -48,7 +48,7 @@ TPM work is deferred. Performance, presentation and stronger isolation
 claims require their own tests. Hyper-V remains type 1; the Windows desktop
 is in the root partition, while OpenHCL runs within the guest partition.
 
-Read the [GPU-PV and dedicated DDA guide (Portuguese)](docs/GPU-PV-E-DDA.md)
+Read the [GPU-PV and dedicated DDA guide](docs/GPU-PV-E-DDA.md)
 for exact-adapter selection, complete driver preparation, validation and
 recovery. GPU-PV is demonstrated experimentally; DDA remains conditional
 and unverified in the current OpenHCL configuration.

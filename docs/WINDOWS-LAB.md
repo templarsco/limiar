@@ -79,7 +79,7 @@ The raw XML template is not deployment media; use the preparation script.
 `Prepare-GpuDriver.ps1` collects only the selected main driver package.
 For AMD packages with separate OpenGL libraries, this is not a complete
 payload: discover and verify the active companion as described in the
-[updated guide](GPU-PV-E-DDA.md#amd-opengl-e-erro-126). Do not infer OpenGL
+[updated guide](GPU-PV-E-DDA.md#amd-opengl-and-error-126). Do not infer OpenGL
 support from the D3D11 checks below.
 
 After the guest has a configured user and its bootstrap has completed:
