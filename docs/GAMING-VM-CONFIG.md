@@ -1,5 +1,9 @@
 # PVGPU Gaming VM Configuration
 
+Historical PVGPU/QEMU reference, not the current development focus or an
+installation procedure for the native OpenHCL guest. See the
+[active OpenHCL workstream](OPENHCL-COMPATIBILITY.md).
+
 This document provides sample QEMU command lines and configurations for running Windows gaming VMs with PVGPU.
 
 ## Prerequisites

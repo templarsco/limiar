@@ -1,8 +1,11 @@
 # Contributing to Limiar
 
-The active project is Limiar. Start with the root Cargo workspace and the
-[development plan](docs/DEVELOPMENT-PLAN.md). The old PVGPU directories below
-are historical prototype components, not the current build path.
+The active project is Limiar, focused on native Hyper-V/OpenHCL, custom
+mu_msvm firmware and GPU-PV. Start with the
+[OpenHCL workstream](docs/OPENHCL-COMPATIBILITY.md) and
+[development plan](docs/DEVELOPMENT-PLAN.md). QEMU is not the current focus;
+its code and tests remain as historical reference and regression coverage.
+The old PVGPU directories below are also historical prototype components.
 
 ## Current Development
 
@@ -20,13 +23,20 @@ or personal transcripts. Sanitized validation summaries must distinguish native
 host tests from guest tests and document unknown/unsupported capabilities.
 Never disable or dismount a device as part of a diagnostic command.
 
-The initial CLI uses the existing MIT OR Apache-2.0 terms. Preserve dependency
-notices. Proposals for different licenses need a separate review.
+Check [component licensing](LICENSING.md) before contributing or sharing.
+The existing CLI retains MIT OR Apache-2.0 terms; the explicit restricted
+file set uses the Limiar Private-Use License. Looking Glass-derived work
+keeps its GPL terms. Do not submit restricted material through public
+forks or patches without the relevant permission; arrange an authorized
+private submission and licensing agreement first. Preserve upstream
+notices and obtain permission from every relevant copyright holder.
 
 ## Historical PVGPU Contribution Notes
 
 The remainder documents the previous prototype and is not a list of current
-Limiar prerequisites or priorities.
+Limiar prerequisites or priorities. Its fork workflow and dual-license
+contribution statement apply to that historical material, not the new
+restricted file set or the full private research tree.
 
 ## Areas Where We Need Help
 

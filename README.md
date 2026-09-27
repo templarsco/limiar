@@ -2,32 +2,84 @@
 
 [![Build](https://github.com/templarsco/limiar/actions/workflows/build.yml/badge.svg)](https://github.com/templarsco/limiar/actions/workflows/build.yml)
 
-**A Windows-first virtualization project targeting QEMU-class machine
-control and GPU-accelerated desktop applications.** Formerly the PVGPU
-experimental GPU-remoting project.
+**A Windows-first virtualization project focused on native Hyper-V,
+OpenHCL, configurable guest firmware and GPU-PV.** Formerly the PVGPU
+experimental GPU-remoting project. QEMU is a retained reference, not the
+active implementation focus.
 
 ## Mission
 
-User-owned machine configuration is the reason for Limiar: firmware,
-SMBIOS and virtual hardware control, combined with useful graphics and
-application performance in the same VM. The Hub is the management surface
-for that platform, not the main differentiator.
+Run games and applications in a controlled Windows guest separate from
+the main installation, with user-configurable firmware, SMBIOS and virtual
+hardware plus useful graphics in the same VM. This includes applications
+with intrusive kernel components, without developing or using cheats.
+Isolation is a security objective that needs validation, not an absolute
+protection guarantee. The Hub is a later management surface.
+
+The [AWS Nitro System](https://aws.amazon.com/ec2/nitro/) is an architectural
+inspiration: separate management, CPU/memory execution and device services,
+with narrow interfaces and explicit isolation boundaries. This informs
+Limiar's Hyper-V/OpenHCL design; it does not reproduce Nitro's dedicated
+hardware or establish equivalent security or performance.
 
 A new interface around unchanged native Hyper-V guests does not meet this
-goal. OpenVMM is the first implementation candidate, not a permanent limit
-on the product. Extending or replacing VMM, firmware or execution-provider
-components remains in scope when required by measured constraints.
+goal. The selected development direction is native Hyper-V with custom
+OpenHCL in real VTL2 and custom mu_msvm UEFI. QEMU/OVMF remains a historical
+machine-configuration reference; its code, tests and existing VMs are
+preserved, with no migration or new QEMU delivery work selected.
+See the [OpenHCL workstream](docs/OPENHCL-COMPATIBILITY.md).
 See the [core contract and next acceptance gate](docs/CORE-CONTRACT.md).
 
-## Current Implementation
+## Current Native Status
 
-This is an early developer release, not a completed desktop hypervisor or a
-production-ready gaming VM. Version 0.5 adds a **bootable Windows identity
+Local research snapshot, September 27, 2026; not a public firmware release
+or a production-ready gaming VM:
+
+| Area | Evidence and remaining scope |
+|---|---|
+| Runtime | Native Hyper-V + real OpenHCL VTL2 + custom mu_msvm booted in one persistent Windows guest |
+| Firmware | Configured BIOS, SMBIOS Type 0/1/2/3 and ACPI fields read back in the guest; broader CPU/device control is incomplete |
+| GPU-PV | Hardware D3D11 offscreen pixel tests passed in that same guest while retaining the host GPU |
+| Applications | Compatibility remains under investigation; no universal game or anti-cheat support is claimed |
+| Looking Glass | Guest capture, transport and physical-Windows viewer/input are the next complete delivery after EAC work; not delivered yet |
+
+The current order is EAC compatibility investigation, then Looking Glass.
+TPM work is deferred. Performance, presentation and stronger isolation
+claims require their own tests. Hyper-V remains type 1; the Windows desktop
+is in the root partition, while OpenHCL runs within the guest partition.
+
+## Publication And Licensing
+
+The intended technical release is a small editable
+[Limiar-named firmware base](docs/LIMIAR-FIRMWARE-BASE.md) and concise
+same-VM firmware/GPU feasibility evidence. The current lab firmware,
+real-machine-model profiles and full study remain private. Looking Glass
+is the only intended complete public integration, under its upstream terms.
+
+Selected original material uses the [Limiar Private-Use License](LICENSE-LIMIAR):
+own use and private modification are allowed; sale and redistribution
+require written permission. This does not withdraw earlier MIT/Apache
+grants or apply to GPL Looking Glass code. See the
+[component license map](LICENSING.md) and
+[publication review](docs/PUBLICATION-REVIEW.md) for scope and public-hosting
+terms, including GitHub platform viewing/forking rights. This update
+publishes the selected source reference, not a firmware image or a
+complete Looking Glass release.
+
+## Historical Reference Workflows
+
+The following CLI-era fixtures remain available for reference and
+regression coverage. They are not the current OpenHCL setup procedure.
+
+<details>
+<summary>Earlier OpenVMM, QEMU/WHPX, VirGL and native GPU fixtures</summary>
+
+Version 0.5 added a **bootable Windows identity
 reference using QEMU/WHPX**, with 22 configurable SMBIOS Type 0/1/2/3 fields,
 persistent disks/firmware variables and a local console. The earlier Windows
 GPU-PV lab, with Secure Boot/vTPM, remains a separate native Hyper-V fixture.
 
-Version 0.6 adds an **experimental QEMU/VirGL lab**, opt-in NAT/output audio,
+Version 0.6 added an **experimental QEMU/VirGL lab**, opt-in NAT/output audio,
 and a bounded D3D11 presentation probe. A recognized virtual GPU is not a
 rendering pass: Windows-driver and application qualification remain in
 progress. See the [graphics lab and current limits](docs/GRAPHICS-LAB.md).
@@ -168,6 +220,8 @@ built GPU probe image and verifies a bounded D3D12 clear/copy/readback workload.
 See [GPU-PV setup, evidence and limitations](docs/GPU-PV.md).
 Windows client / consumer Radeon compatibility remains experimental.
 
+</details>
+
 ## Try The CLI
 
 Prerequisites: Rust via rustup, Visual Studio C++ Build Tools, and a Windows SDK.
@@ -198,6 +252,9 @@ hardware entry; two DXGI entries are not evidence of two physical GPUs.
 Commands produce JSON. `--output <new-file>` also saves a report and refuses
 to overwrite an existing file. Local reports can contain hardware instance
 paths; review them before sharing.
+
+<details>
+<summary>Retained standalone OpenVMM and registry workflows</summary>
 
 ## Build And Launch OpenVMM
 
@@ -252,6 +309,8 @@ another. Each registry belongs to one host OS and must not be shared between
 Windows and WSL. See [Managed VMs](docs/MANAGED-VMS.md) for lifecycle, recovery,
 and trust boundaries. Configuration snapshots are not disk or memory snapshots.
 
+</details>
+
 ## Development
 
 ```powershell
@@ -263,6 +322,7 @@ cargo test --workspace --all-targets --locked
 ```
 
 - [Complete development plan and status](docs/DEVELOPMENT-PLAN.md)
+- [Active OpenHCL workstream](docs/OPENHCL-COMPATIBILITY.md)
 - [Core mission, architecture choices and acceptance gate](docs/CORE-CONTRACT.md)
 - [Architecture and implementation boundaries](docs/ARCHITECTURE.md)
 - [Local validation: Windows 11 and RX 9070 XT](docs/validation/2026-09-23-foundation.md)
@@ -282,10 +342,11 @@ prototype, outside the Limiar workspace. They are not required by this release.
 Their [historical README](docs/legacy/README.md) is preserved separately; old
 feature checkboxes are not evidence of end-to-end functionality.
 
-Limiar currently retains the repository's [MIT](LICENSE-MIT) OR
-[Apache-2.0](LICENSE-APACHE) licensing. OpenVMM keeps its MIT notices; the legacy
-QEMU device keeps its GPL terms. Future licensing changes remain a separate
-decision.
+The existing CLI and earlier releases retain [MIT](LICENSE-MIT) OR
+[Apache-2.0](LICENSE-APACHE) rights. The new restricted material is listed
+explicitly in the [component license map](LICENSING.md). OpenVMM, mu_msvm,
+Looking Glass and the historical QEMU device keep their respective
+upstream licenses. There is no repository-wide no-redistribution claim.
 
 Windows CI packages collect dependency notices with
 `scripts/Write-ThirdPartyNotices.ps1`. The generated inventory includes

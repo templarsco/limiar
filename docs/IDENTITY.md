@@ -2,8 +2,19 @@
 
 User-owned PC identity and machine configuration are central to Limiar,
 not an optional cosmetic layer. The [core contract](CORE-CONTRACT.md)
-targets QEMU-class control together with accelerated applications in the
-same Windows guest.
+targets native OpenHCL firmware control together with accelerated
+applications in the same Windows guest. QEMU is a historical comparison,
+not the current development focus.
+
+## Current Native Profile
+
+Native Hyper-V + OpenHCL + mu_msvm is the active path. Configured BIOS,
+SMBIOS Type 0/1/2/3 and ACPI values have been read back in the same guest
+that passed hardware GPU-PV pixel tests. Broader fields remain explicit
+gaps in [OpenHCL compatibility](OPENHCL-COMPATIBILITY.md).
+The [neutral Limiar base](LIMIAR-FIRMWARE-BASE.md) uses a separate schema-v2
+JSON profile and is not interchangeable with the earlier CLI `[identity]`
+contract below. It has not yet been built and boot-tested in that form.
 
 A profile describes the machine being configured; it is not a promise that
 synthetic devices or the hypervisor disappear. Capabilities must be checked
@@ -11,7 +22,7 @@ for each backend and boot method. A current backend restriction is an
 implementation gap to investigate, not automatically a permanent product
 restriction.
 
-## QEMU Coverage Target
+## Historical Coverage Reference
 
 The reference surface includes configurable SMBIOS Types 0, 1, 2, 3, 4, 9,
 11, 17 and 41, plus explicit binary entries. Track parity by field against
@@ -29,7 +40,7 @@ TOML keys until their generation and guest verification exist. CPU/CPUID,
 ACPI, PCI and graphics-driver behavior are separate parts of the machine
 contract; SMBIOS coverage alone does not complete it.
 
-## Implemented Contract
+## Retained CLI Identity Contract
 
 The optional `[identity]` section uses `preset = "limiar"` by default.
 `preset = "custom"` requires a system manufacturer and product. Both presets
@@ -98,7 +109,7 @@ stable serials. Updates preserve those serials unless replacements are
 supplied. All 22 fields are overrideable. Version 0.5 does not change
 OpenVMM defaults; older binaries cannot read the new backend/extensions.
 
-## Backend Limits
+## Earlier Backend Limits
 
 | Backend / boot | Type 0 | Type 1 | Type 2/3 | Shared GPU |
 |---|---|---|---|---|
@@ -108,7 +119,8 @@ OpenVMM defaults; older binaries cannot read the new backend/extensions.
 | HCS / Linux probe | No override | No override | No override | Experimental GPU-PV path |
 | Native Hyper-V / Windows lab | No override | Hyper-V-generated, observed in guest | No override | Windows D3D11 tests passed in 0.4 |
 
-The HCS probe does not consume OpenVMM profiles or their identity values.
+This table describes the earlier CLI fixtures, not the current OpenHCL
+firmware path. The HCS probe does not consume OpenVMM profiles or their identity values.
 Combining full identity controls with shared graphics in one production VM
 requires more backend/firmware work. There is no automatic fallback that drops
 identity settings to make an unsupported backend start.

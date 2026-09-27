@@ -1,10 +1,14 @@
 # GPU-PV On The QEMU Backend
 
-Investigation date: September 24, 2026. Status: backend integration required;
+Historical investigation, not the current development focus. Native
+[OpenHCL compatibility](OPENHCL-COMPATIBILITY.md) is the active workstream.
+
+Investigation date: September 24, 2026. Status at that time: backend integration required;
 native GPU-PV is not implemented for a Limiar QEMU VM.
 
-This is a work item, not a permanent product limitation. Preserving the
-QEMU machine model and the user's identity configuration remains mandatory.
+This was a QEMU-specific work item, not a permanent product limitation.
+Its original machine-model requirement below does not override the later
+native OpenHCL decision.
 
 ## What Already Passed
 

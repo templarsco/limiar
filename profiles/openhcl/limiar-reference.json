@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "bios": {
+    "vendor": "Limiar",
+    "version": "Limiar OpenHCL 0.2",
+    "release_date": "09/27/2026",
+    "release_major": 0,
+    "release_minor": 2,
+    "virtual_machine": true
+  },
+  "acpi": {
+    "oem_id": "LIMIAR",
+    "oem_table_id": "LMRBOARD",
+    "oem_revision": 1,
+    "creator_id": "LMAR",
+    "creator_revision": 1,
+    "preferred_pm_profile": 1
+  },
+  "machine": {
+    "system": {
+      "manufacturer": "Limiar",
+      "product_name": "Limiar Virtual Desktop",
+      "version": "1.0",
+      "sku_number": "LIMIAR-DESKTOP-REF",
+      "family": "Limiar Desktop"
+    },
+    "baseboard": {
+      "manufacturer": "Limiar",
+      "product_name": "Limiar Reference Board",
+      "version": "1.0",
+      "asset_tag": "Limiar Reference",
+      "location": "Limiar System Board"
+    },
+    "chassis": {
+      "manufacturer": "Limiar",
+      "version": "1.0",
+      "asset_tag": "Limiar Reference",
+      "sku_number": "LIMIAR-DESKTOP",
+      "type": 3
+    }
+  }
+}

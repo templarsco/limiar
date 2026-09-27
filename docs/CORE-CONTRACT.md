@@ -1,18 +1,21 @@
 # Limiar Core Contract
 
-Decision date: September 24, 2026. Status: accepted product direction;
-the combined runtime described here is not implemented.
+Decision date: September 24, 2026; current status updated September 27.
+Native Hyper-V/OpenHCL is the active path. Initial same-VM custom firmware
+and GPU-PV offscreen rendering passed; complete platform delivery is open.
 
 ## Mission
 
-Build a Windows-first PC virtualization platform with QEMU-class control
-over the guest machine and hardware-accelerated desktop applications.
+Build a Windows-first PC virtualization platform with configurable native
+guest firmware/hardware and accelerated desktop applications.
 Machine identity, firmware and virtual hardware configuration are central
 requirements, not optional decorations on a fixed Hyper-V guest.
 
 The user should be able to configure and boot a coherent PC environment,
 use everyday applications and games, and retain practical control of its
 resources. Limiar supplies editable defaults and persistent identities.
+The purpose is to separate intrusive applications from the main Windows
+installation, without cheating. Isolation remains a property to validate.
 The Hub makes that platform convenient to use; a new management interface
 alone does not fulfill the mission.
 
@@ -21,20 +24,50 @@ additional guest families and management conveniences build on the same
 core. Performance, stability and interactive usability are acceptance
 criteria, not claims inferred from successful boot or a GPU being listed.
 
+## Selected Composition
+
+Superseding decision, September 25, 2026: the user approved native Hyper-V
+with custom OpenHCL in real VTL2 and custom mu_msvm UEFI as the development
+direction, reaffirmed September 27. QEMU is not the current focus:
+QEMU/OVMF remains a historical configuration and compatibility reference,
+not the final machine-model owner or an active development gate.
+Standalone OpenVMM/WHP, emulated VTL2 and WSL-nested KVM are not the
+selected delivery runtime.
+
+Firmware, device and CPU behavior must be mapped to the component that
+actually owns it. A management wrapper around an unchanged Hyper-V VM
+remains insufficient. Running a paravisor does not automatically grant
+control over all behavior owned by the underlying hypervisor.
+
+Prefer shared GPU-PV while retaining the RX 9070 XT on the Windows host.
+The user also admitted IOMMU-backed assignment as an alternative. This is
+not authorization to dismount the display GPU: assignment needs a concrete
+available device, host support, explicit approval and recovery procedure.
+Allocation, guest transport, graphics-driver behavior and presentation
+must be implemented and measured together. Separate successful Hyper-V
+GPU and QEMU identity fixtures do not constitute this result.
+
+The [public OpenHCL summary](OPENHCL-COMPATIBILITY.md)
+describes the current direction. The [earlier QEMU GPU investigation](QEMU-GPU-PV.md)
+is retained as historical research. Neither generic VMBus relay nor a
+custom firmware build alone establishes working GPU-PV through OpenHCL.
+The later same-VM firmware readback and D3D11 pixel evidence does establish
+bounded native feasibility; it does not establish complete delivery.
+
 ## Required Outcome
 
 | Requirement | Acceptance target |
 |---|---|
 | Machine ownership | User-controlled firmware and machine configuration, not only a display name or guest registry edits |
-| SMBIOS coverage | Field-by-field parity with an explicitly pinned QEMU reference, including its binary-entry input path; coverage must be published |
+| SMBIOS coverage | Field-by-field native coverage with implementation owners and explicit gaps; QEMU is a comparison reference, not an active backend requirement; publish only selected reviewed evidence |
 | Coherent virtual hardware | CPU/topology, memory, ACPI, devices, storage and networking agree with the resources actually exposed |
 | Combined graphics | Configurable identity and working accelerated graphics in the same persistent Windows guest |
 | Shared GPU preference | Prefer keeping the RX 9070 XT usable on the Windows host; evaluate other transports when needed |
 | Application experience | Rendered/presented frames, working input/audio and repeatable application sessions, not only graphics API probes |
 | Quality and performance | Repeatable cold boots, normal shutdown, recovery and measured frame times, responsiveness and host impact |
 
-QEMU-class configurability is a target, not a claim that Limiar already
-implements every QEMU feature or every SMBIOS specification field.
+Broad machine configurability is a target, not a claim that Limiar already
+implements every reference feature or every SMBIOS specification field.
 Unsupported configuration must fail explicitly until its implementation
 exists. GPU acceleration must not silently discard the requested identity.
 
@@ -67,9 +100,10 @@ in scope, but no replacement has been implemented or selected.
 
 | Path | Role and required evidence |
 |---|---|
-| Native Hyper-V / HCS | Keep the existing GPU and Windows fixtures as controls. A management wrapper around these unchanged guests is not the target product. |
-| OpenVMM and its firmware | First implementation candidate. Extend or fork the relevant components where needed; prove Windows identity and graphics together. Existing CLI limits are not permanent product limits. |
-| QEMU-based machine model | Configuration and application reference, and an alternative implementation candidate. A Windows graphics transport still needs independent validation. |
+| Native Hyper-V + OpenHCL + mu_msvm | Active development path; selected firmware fields and GPU-PV offscreen rendering verified in one guest. EAC, Looking Glass, broader device control and full delivery remain open. |
+| Existing native Hyper-V / HCS labs | GPU controls only. Existing VM state and ownership remain unchanged. |
+| Standalone OpenVMM/WHP | Source reference and development fixture; no established native GPU-PV binding. |
+| QEMU/OVMF and WSL-nested compatibility lab | Preserve configuration/patch evidence; no further migration into this runtime without a new decision. |
 | Different execution provider / custom hypervisor | Contingency when evidence locates a hard blocker below the VMM. Requires its own CPU, isolation, device, driver, security, performance and recovery investigation. |
 
 OpenHCL is an execution environment that runs OpenVMM as a paravisor.
@@ -81,33 +115,31 @@ cost. Graphics-transport research moves forward when required by the core;
 it must not be postponed behind building a Hub for a machine that cannot
 meet the mission.
 
-## Next Core Gate
+## Current Acceptance Gates
 
-This gate takes priority over broad service/UI work and new guest families.
-It selects a viable architecture; passing an initial prototype does not
-complete the full coverage target.
+These gates take priority over broad service/UI work and new guest
+families. They qualify the selected native architecture; passing an
+initial prototype does not complete the full coverage target.
 
-1. Capture a versioned QEMU reference: executable/source revision, firmware,
-   machine options, Windows build, graphics path and application versions.
-   The reported Roblox-on-QEMU result is a useful user observation, not yet
-   a reproduced Limiar test.
-2. Map the reference's configuration fields to their implementation owners
-   and current support. Include SMBIOS Types 0, 1, 2, 3, 4, 9, 11, 17 and 41,
-   binary entries, CPU/topology, ACPI and device configuration. Record gaps
-   without treating unknown support as impossible.
-3. Prove persistent Windows boot with distinct custom BIOS, system,
-   baseboard and chassis profiles in a candidate VMM/firmware path.
-   Read the resulting values inside the guest and compare them after reboot.
-4. Add accelerated, presented graphics to that same VM. Test the requested
-   adapter, input, audio and host display continuity. Separate successful
-   device attachment from successful workloads.
-5. Reproduce an interactive application session, with Roblox as the first
-   candidate. Fix the scene, settings, resolution and measurement procedure
+1. Preserve the completed source pins, first custom firmware/IGVM build,
+   native boot, selected identity readback and same-VM GPU-PV pixel evidence.
+   Those establish feasibility, not a finished product.
+2. Investigate the outstanding EAC gate in the current native guest;
+   distinguish offline startup, online acceptance and owner reports.
+3. Implement and verify Looking Glass capture in the guest, transport and
+   viewer/input on physical Windows. TPM remains deferred.
+4. Extend applicable native identity/device/CPU controls and verify readback.
+   Include SMBIOS Types 0, 1, 2, 3, 4, 9, 11, 17 and 41, binary entries,
+   CPU/topology, ACPI and the devices actually exposed. Unsupported fields
+   remain explicit gaps rather than silently accepted profile entries.
+5. Reproduce interactive application sessions without changing the scope
+   of earlier owner-reported passes. Fix settings and measurement procedure
    before comparisons. Record guest and native baseline versions, frame-time
    distribution, average/low FPS, latency measurement method and host impact.
-6. Publish a go/no-go decision for the candidate. If it cannot meet the
-   combined requirements, record the blocking layer and advance the next
-   candidate instead of redefining a Hyper-V wrapper as completion.
+6. Record a go/no-go decision and select approved release evidence. If
+   native GPU binding, required CPU behavior or host restrictions block it, record that layer
+   and return the decision to the user. Do not start another sequence of
+   hypervisor migrations or redefine a Hyper-V wrapper as completion.
 
 Real applications, including games with anti-cheat, belong in the test
 matrix. Compatibility is recorded per application/version/configuration.
@@ -126,12 +158,28 @@ boots include custom values and restoration. This advances the identity
 requirement; shared GPU acceleration and the combined application gate
 remain open.
 
+The later OpenHCL result is recorded in
+[the active workstream](OPENHCL-COMPATIBILITY.md). It supersedes the old
+combined-feasibility gap for the measured native configuration, not for
+QEMU. Preserve QEMU code, tests and VMs without resuming that work by default.
+
 Do not change host boot/security settings, load experimental kernel drivers,
 or disable/dismount a display GPU as an incidental documentation or build
 step. Such experiments need a specific recovery plan and confirmation
 before touching the host. Keep credentials and identifying raw inventories
 private. Do not represent guest-reported metadata as physical-hardware or
 remote-attestation proof.
+
+## Publication And Licensing
+
+Only a limited neutral Limiar firmware base and selected feasibility
+evidence are intended for technical release; the lab firmware and complete
+study stay private. Looking Glass is the only intended complete public
+integration, under compatible upstream GPL terms.
+The [component license map](../LICENSING.md) assigns no-sale/no-redistribution
+terms to an explicit set of new original files, not earlier MIT/Apache
+releases or third-party code. Follow the
+[publication review](PUBLICATION-REVIEW.md) before any distribution.
 
 ## References
 

@@ -1,8 +1,10 @@
-"""Regression checks for the core-contract documentation added in PR #6."""
+"""Regression checks for project direction, documentation and license scope."""
 
+import json
 from pathlib import Path
 import re
 import tempfile
+import tomllib
 import unittest
 from urllib.parse import unquote, urlsplit
 
@@ -17,6 +19,20 @@ DOCUMENTS = (
 )
 CONTRACT = ROOT / "docs/CORE-CONTRACT.md"
 INLINE_LINK = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
+LICENSING_DOCUMENTS = (
+    Path("LICENSING.md"),
+    Path("CONTRIBUTING.md"),
+    Path("docs/PUBLICATION-REVIEW.md"),
+    Path("docs/LIMIAR-FIRMWARE-BASE.md"),
+    Path("docs/OPENHCL-COMPATIBILITY.md"),
+)
+RESTRICTED_FILES = {
+    "docs/LIMIAR-FIRMWARE-BASE.md",
+    "docs/PUBLICATION-REVIEW.md",
+    "profiles/openhcl/limiar-reference.json",
+    "scripts/openhcl/Firmware.psm1",
+    "tests/openhcl_limiar_profile.ps1",
+}
 
 
 def local_targets(document):
@@ -82,6 +98,99 @@ class CoreContractDocumentationTests(unittest.TestCase):
         targets = {target for _, target in local_targets(CONTRACT)}
         self.assertIn(ROOT / "docs/IDENTITY.md", targets)
         self.assertIn(ROOT / "docs/DEVELOPMENT-PLAN.md", targets)
+
+    def test_main_guides_point_to_the_active_native_workstream(self):
+        workstream = ROOT / "docs/OPENHCL-COMPATIBILITY.md"
+        for relative_path in DOCUMENTS:
+            with self.subTest(document=str(relative_path)):
+                document = ROOT / relative_path
+                self.assertIn(workstream, {target for _, target in local_targets(document)})
+                introduction = document.read_text(encoding="utf-8")[:2000]
+                self.assertIn("OpenHCL", introduction)
+                self.assertIn("QEMU", introduction)
+
+    def test_readme_separates_current_status_from_reference_workflows(self):
+        text = (ROOT / "README.md").read_text(encoding="utf-8")
+        self.assertLess(
+            text.index("## Current Native Status"),
+            text.index("## Historical Reference Workflows"),
+        )
+        self.assertGreater(text.count("<details>"), 0)
+        self.assertEqual(text.count("<details>"), text.count("</details>"))
+
+    def test_nitro_inspiration_has_an_official_reference(self):
+        for relative in (Path("README.md"), Path("docs/ARCHITECTURE.md")):
+            with self.subTest(document=str(relative)):
+                text = (ROOT / relative).read_text(encoding="utf-8")
+                self.assertIn("AWS Nitro", text)
+                self.assertIn("https://aws.amazon.com/ec2/nitro/", INLINE_LINK.findall(text))
+
+
+class ComponentLicensingTests(unittest.TestCase):
+    """Check license declarations, not legal validity or release clearance."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.manifest = json.loads(
+            (ROOT / "licensing/limiar-private-files.json").read_text(encoding="utf-8")
+        )
+
+    def test_restricted_scope_is_an_explicit_file_allowlist(self):
+        self.assertEqual(self.manifest["schema_version"], 1)
+        files = self.manifest["files"]
+        self.assertEqual(len(files), len(set(files)), "duplicate restricted paths")
+        self.assertEqual(set(files), RESTRICTED_FILES)
+        for relative in files:
+            with self.subTest(path=relative):
+                self.assertNotRegex(relative, r"[\\*?\[\]]")
+                path = Path(relative)
+                self.assertFalse(path.is_absolute())
+                self.assertNotIn("..", path.parts)
+                target = (ROOT / path).resolve()
+                self.assertTrue(target.is_relative_to(ROOT))
+                self.assertTrue(target.is_file())
+
+    def test_covered_files_have_matching_license_notices(self):
+        identifier = "LicenseRef-Limiar-Private-Use-1.0"
+        self.assertEqual(self.manifest["license_id"], identifier)
+        for relative in self.manifest["files"]:
+            with self.subTest(path=relative):
+                path = ROOT / relative
+                notice = Path(str(path) + ".license") if path.suffix == ".json" else path
+                text = notice.read_text(encoding="utf-8")
+                self.assertIn("SPDX-FileCopyrightText: 2026 SANSI GROUP", text)
+                self.assertEqual(text.count("SPDX-License-Identifier: " + identifier), 1)
+
+    def test_license_document_and_historical_cli_terms_are_separate(self):
+        self.assertEqual(self.manifest["license_file"], "LICENSE-LIMIAR")
+        license_text = (ROOT / self.manifest["license_file"]).read_text(encoding="utf-8")
+        self.assertIn(self.manifest["license_id"], license_text)
+        self.assertIn("No Sale / No Redistribution", license_text)
+        self.assertIn("private copies", license_text)
+        self.assertIn("Existing And Third-Party Rights", license_text)
+        workspace = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+        package = tomllib.loads(
+            (ROOT / "crates/limiar/Cargo.toml").read_text(encoding="utf-8")
+        )
+        self.assertEqual(workspace["workspace"]["package"]["license"], "MIT OR Apache-2.0")
+        self.assertTrue(package["package"]["license"]["workspace"])
+        self.assertFalse(package["package"]["publish"])
+        self.assertTrue((ROOT / "LICENSE-MIT").is_file())
+        self.assertTrue((ROOT / "LICENSE-APACHE").is_file())
+
+    def test_licensing_documents_resolve_local_references(self):
+        for relative in LICENSING_DOCUMENTS:
+            with self.subTest(document=str(relative)):
+                for href, target in local_targets(ROOT / relative):
+                    with self.subTest(link=href):
+                        self.assertTrue(target.is_relative_to(ROOT))
+                        self.assertTrue(target.is_file())
+
+    def test_current_publication_guides_link_the_license_map(self):
+        for relative in DOCUMENTS[:4] + LICENSING_DOCUMENTS[1:]:
+            with self.subTest(document=str(relative)):
+                targets = {target for _, target in local_targets(ROOT / relative)}
+                self.assertIn(ROOT / "LICENSING.md", targets)
 
 
 if __name__ == "__main__":

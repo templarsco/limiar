@@ -1,0 +1,72 @@
+Limiar Private-Use License 1.0
+No Sale / No Redistribution
+SPDX identifier: LicenseRef-Limiar-Private-Use-1.0
+Effective date: September 27, 2026
+
+Copyright (c) 2026 SANSI GROUP.
+
+1. Scope
+
+This license applies only to copyrightable original Limiar material
+expressly identified by this license identifier or listed in
+licensing/limiar-private-files.json (the "Covered Material"), to the
+extent the copyright holder has the right to license it on these terms.
+It does not cover an entire repository, dependency, firmware image or
+combined work merely because the Covered Material is included in it.
+
+"You" means the individual or legal entity obtaining the Covered Material
+lawfully. "Licensor" means the copyright holder granting these rights.
+
+2. Private Use And Modification
+
+Subject to these terms, Licensor grants You a non-exclusive, no-charge
+license to read, study, run, build, make private copies of and modify the
+Covered Material for Your own personal or internal use. You may retain
+private backups and run private builds on systems You own or are
+authorized to administer. Editable Limiar names are defaults; You may
+change them in Your private adaptations. Keep applicable copyright,
+license and third-party notices with Your copies and builds.
+
+3. No Sale Or Redistribution
+
+Except with separate written permission from the relevant copyright
+holder, You may not sell, rent, sublicense, publish, upload, mirror,
+redistribute or otherwise make the Covered Material available to third
+parties, whether for payment or free of charge. This includes original
+or modified source, compiled copies, firmware images and bundles that
+contain copyrightable portions of the Covered Material.
+
+This license does not authorize selling or distributing a modified
+version simply because its names, metadata or packaging have changed.
+Private-use permission is not permission to supply copies to customers
+or to publish a derivative distribution.
+
+4. Existing And Third-Party Rights
+
+These terms do not revoke or narrow rights already granted under an
+earlier license, a separate agreement, applicable law or the terms of a
+hosting service chosen by the copyright holder. Third-party material and
+separately licensed components retain their own licenses. Those licenses
+govern that material; these restrictions must not be imposed on upstream
+code or on a work whose license prohibits such additional restrictions.
+
+No exclusive rights in facts, ideas, public APIs or independently written
+implementations are claimed. No trademark or endorsement rights are
+granted. All rights not expressly granted by Licensor are reserved.
+
+5. Termination
+
+Rights granted by this license terminate if You violate its conditions.
+Termination does not alter rights independently obtained under another
+license or require the removal of independently licensed components.
+Reinstatement requires written permission from Licensor.
+
+6. Disclaimer
+
+THE COVERED MATERIAL IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE AND NONINFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED BY LAW,
+LICENSOR IS NOT LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING
+FROM USE OF OR INABILITY TO USE THE COVERED MATERIAL.
+
+This is a restricted source-available license, not an open-source license.

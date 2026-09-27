@@ -1,5 +1,9 @@
 # Experimental Windows Graphics Lab
 
+Historical QEMU/VirGL reference, not the current development focus. The
+active path is [native OpenHCL with GPU-PV](OPENHCL-COMPATIBILITY.md).
+Preserve these fixtures and tests; do not resume their delivery plan by default.
+
 Limiar 0.6 adds explicit QEMU graphics, networking and audio choices, a
 bounded D3D11 presentation probe, and guest-only driver preparation.
 This is a development laboratory, not a qualified Roblox machine.

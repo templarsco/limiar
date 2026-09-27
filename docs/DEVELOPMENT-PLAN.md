@@ -1,23 +1,29 @@
 # Limiar Development Plan
 
-Status: foundation, managed identity and Linux GPU-PV published. The 0.4
-slice adds a persistent Windows 11 GPU-PV laboratory with verified Secure
-Boot/vTPM and repeated guest graphics tests, September 24, 2026. Later
-product milestones remain planned.
+Current status, September 27, 2026: native Hyper-V + OpenHCL in real VTL2 +
+custom mu_msvm is the active development path. Configured firmware readback
+and hardware GPU-PV offscreen rendering have passed in the same Windows
+guest. EAC compatibility and end-to-end Looking Glass remain open.
+QEMU/WHPX and VirGL are historical reference work, not the current focus.
 
-Version 0.5 adds a QEMU/WHPX Windows reference with 22 verified identity
-fields and basic desktop output. Shared GPU acceleration is not integrated
-into that machine.
+Earlier CLI, managed identity, Linux GPU-PV and stock Windows fixtures
+remain valid within their recorded scope. The QEMU 0.5/0.6 identity and
+graphics experiments are retained without migration; their limitations
+do not describe the later native OpenHCL result.
 
 ## Product
 
-Limiar targets QEMU-class ownership of a configurable PC, with useful
+Limiar targets a configurable native Windows guest with useful
 GPU-accelerated applications on a Windows host. Machine identity, firmware
 and virtual hardware control are the central mission. The Hub makes that
 platform practical to manage; a native Hyper-V management wrapper alone is
 not the product.
 
-OpenVMM is the first implementation candidate, not an architectural ceiling.
+Native Hyper-V + custom OpenHCL + custom mu_msvm is the selected development
+direction as of September 25, 2026, reaffirmed on September 27. QEMU remains
+a configuration comparison and regression fixture, not a development target.
+The selected public status and limitations are summarized in
+[OpenHCL compatibility](OPENHCL-COMPATIBILITY.md).
 The [core contract](CORE-CONTRACT.md) defines the required combined outcome
 and the criteria for extending, forking or replacing components, including
 the execution provider if necessary.
@@ -28,27 +34,45 @@ macOS integration and custom console-style systems are later workstreams.
 The complete roadmap below is not a claim that every phase is implemented.
 Each phase must produce evidence before its status changes to complete.
 
+## Active Order
+
+1. Preserve the working native guest and investigate the remaining
+   EAC compatibility failure with versioned, bounded evidence.
+2. Implement and validate Looking Glass capture in the guest, frame
+   transport and viewer/input on physical Windows. Measure performance.
+3. Continue the applicable native firmware/device coverage and delivery
+   gates without sacrificing working graphics or host isolation.
+
+TPM remains deferred. A neutral Limiar firmware base is a limited release
+candidate, not permission to publish the lab firmware or full study.
+Looking Glass is the only intended complete public integration, subject
+to its upstream GPL terms. Follow [component licensing](../LICENSING.md)
+and the [publication review](PUBLICATION-REVIEW.md) for every selection.
+
 ## Decisions
 
-- Start from upstream OpenVMM through a supervised process boundary, but
-  evaluate it against the core contract rather than constraining the mission
-  to its existing CLI.
+- Retain the existing OpenVMM and QEMU fixtures without migrating them.
+  Develop the combined guest using native OpenHCL and mu_msvm. Broad
+  machine control remains the requirement; further QEMU feature work is
+  not selected by default. Keep its regression coverage.
 - Prioritize shared GPU-PV so the host retains the GPU; dedicated assignment
   remains another delivery path. HCS is the first experimental sharing path,
   not a required product management architecture.
 - Treat PC identity as user configuration, with coherent project defaults
   and persistent UUID/serial values. Do not silently drop unsupported fields.
-- OpenVMM identity and HCS GPU-PV are separate paths today; a combined
-  Windows desktop VM is still an acceptance requirement, not a delivered feature.
-- Freeze the role of the native Hyper-V lab as a validation fixture. Do not
-  promote it to the final product merely by adding management/UI features.
+- Earlier standalone OpenVMM identity and HCS GPU-PV fixtures are separate.
+  Native OpenHCL has since passed selected identity and offscreen GPU
+  checks in one guest; presented graphics and full delivery remain open.
+- Preserve the earlier stock Hyper-V fixture separately from the active
+  custom OpenHCL VM. A management/UI change alone is not product completion.
 - Revise VMM, firmware or hypervisor choices when a demonstrated blocker
   prevents the core result. A separate hypervisor is an available research
   direction, not an already implemented feature or an automatic next step.
 - Pin the upstream revision and the Rust toolchain; do not silently track main.
 - Keep the legacy PVGPU sources in place, outside the new Cargo workspace.
-- Keep existing licenses and third-party notices. Licensing changes require a
-  separate ownership and dependency review.
+- Apply the Limiar Private-Use License only to its explicit original-file
+  allowlist. Preserve previous MIT/Apache grants and upstream terms,
+  including GPL Looking Glass. Review any expansion of restricted scope.
 - The GitHub repository was renamed to `templarsco/limiar` on September 23,
   2026. Preserve the existing history and issues; PVGPU remains the name of the
   historical prototype.
@@ -58,34 +82,42 @@ Each phase must produce evidence before its status changes to complete.
 
 ## Core Gate: Configurable Accelerated PC
 
-Status: product direction recorded September 24, 2026; runtime gate pending.
-This is the next priority. M0-M2 below preserve completed work and outstanding
-engineering tasks; their numbering does not put M3/M4 ahead of this gate.
+Status: initial native same-VM firmware/GPU feasibility passed; full
+interactive delivery remains pending. The active order above takes
+priority. M0-M2 preserve earlier work and outstanding engineering tasks;
+their numbering does not put management/UI ahead of this gate.
 
 - [x] Make machine control and application experience the central product
   contract, with management/UI subordinate to a viable runtime.
-- [ ] Pin and capture a QEMU reference configuration and its application
-  behavior on the Windows host.
+- [x] Pin native OpenHCL/mu_msvm sources and record their first implemented
+  firmware controls and native boot evidence.
 - [ ] Build a field-level coverage matrix, including the full reference
   SMBIOS input surface, and identify the owner of every implementation gap.
 - [x] Prove Windows UEFI boot with distinct custom BIOS/system/baseboard/chassis
   profiles, persistence and guest-side value verification.
+- [x] Verify configured native firmware and hardware GPU-PV offscreen
+  rendering in the same OpenHCL Windows guest.
+- [ ] Resolve the remaining EAC application gate without relabeling
+  offline startup as online acceptance.
 - [ ] Add accelerated presented graphics to that same configurable VM.
-- [ ] Validate input/audio and a repeatable interactive application session;
-  Roblox is the first candidate, not yet a reproduced Limiar result.
+- [ ] Validate Looking Glass input/audio and repeatable interactive
+  sessions. Owner-reported game passes are recorded separately from
+  agent-reproduced tests and performance measurements.
 - [ ] Record native/guest performance under fixed settings and account for
   host graphics continuity, frame times and recovery.
-- [ ] Publish a candidate go/no-go decision. Advance another VMM or execution
-  provider when necessary instead of declaring the existing lab sufficient.
+- [ ] Record a candidate go/no-go decision and select only approved
+  evidence for publication; do not release the complete private study.
 
-The identity/boot item is supported by the 0.5
+The earlier identity/boot fixture is preserved in the 0.5
 [Windows validation](validation/2026-09-24-windows-custom-identity.md).
-It does not close the accelerated-graphics or interactive-application gate.
+The active same-VM result and remaining gates are recorded in
+[OpenHCL compatibility](OPENHCL-COMPATIBILITY.md). Offscreen correctness
+does not complete the interactive application or Looking Glass gate.
 
 Exit criteria: one candidate demonstrates configurable Windows identity and
 accelerated interactive applications together, with its remaining coverage
-gaps explicit. Full QEMU-field parity remains a separate completion target;
-the first prototype must not be advertised as 100% coverage.
+gaps explicit. Broader field coverage remains a separate target, with
+QEMU as comparison only; do not advertise the prototype as 100% coverage.
 
 Application compatibility, performance and stability are part of this gate.
 Broader product/UI work cannot substitute for it. Consult the
@@ -150,8 +182,9 @@ Windows media acquisition and redistribution must respect its license.
 
 ## M2: Shared GPU-PV First
 
-Status: in progress. HCS attachment, Linux boot, dxgkrnl visibility and a
-bounded D3D12 pixel readback are implemented and have local evidence.
+Status: in progress. The earlier HCS/Linux and stock Windows GPU fixtures
+below are retained. The later native OpenHCL same-guest firmware/D3D11
+result advances feasibility but is not a completed supported product.
 
 - [x] Query partitionable GPUs; keep raw quota units and unknown states explicit.
 - [x] Select the exact RX 9070 XT without default-adapter fallback.
@@ -273,7 +306,9 @@ documented recovery procedures, and evidence for every advertised capability.
 
 - Local, potentially identifying reports and VM logs live under `.limiar/`
   (ignored by Git).
-- Publish only reviewed, sanitized summaries under `docs/validation/`.
+- Keep the full lab study private. Select only reviewed, sanitized
+  summaries for any release; a file under `docs/validation/` is not
+  automatically approved for publication.
 - A test result records command, versions, outcome, and limitations.
 - Update this checklist incrementally. Do not mark later phases complete
   because a plan, scaffold, or native-only test exists.

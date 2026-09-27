@@ -2,20 +2,62 @@
 
 ## Product Direction
 
-The [core contract](CORE-CONTRACT.md) makes QEMU-class machine control and
-accelerated application experience the main requirement. The future Hub is
-its management surface, not a substitute for controlling the machine.
+The [core contract](CORE-CONTRACT.md) makes user-controlled guest firmware,
+coherent virtual hardware and accelerated applications the main requirement.
+Native Hyper-V/OpenHCL is the active path; QEMU is a historical reference,
+not the current development focus. The future Hub is a management surface.
 
 Architecture decisions separate management, guest machine construction and
-CPU/memory execution. OpenVMM is the first candidate. Firmware/VMM changes,
-alternative candidates and a separate execution-provider investigation are
-in scope when needed to meet the contract. Using an API is not the acceptance
-test; delivering the required machine behavior is.
+CPU/memory execution. Native Hyper-V + custom OpenHCL in real VTL2 +
+custom mu_msvm UEFI is the selected development direction as of September
+25, 2026, reaffirmed on September 27. QEMU remains a configuration reference. The
+[public OpenHCL summary](OPENHCL-COMPATIBILITY.md) separates demonstrated
+firmware and same-guest GPU-PV results from unproven Hyper-V-owned CPU
+controls, presentation and device transport capabilities.
+Using an API is not the acceptance test; delivering the required machine
+behavior is.
 
-These are design requirements. The current runtime below has not achieved
-the combined configurable Windows-and-GPU target.
+The local OpenHCL guest has passed configured SMBIOS/ACPI readback and
+offscreen hardware D3D11 tests in the same VM. Full platform delivery,
+EAC compatibility and end-to-end Looking Glass remain open.
 
-## Current Vertical Slices
+## AWS Nitro Inspiration
+
+The [AWS Nitro System](https://aws.amazon.com/ec2/nitro/) is an architectural
+inspiration for Limiar. Nitro separates functions traditionally grouped
+inside a virtualization stack, using dedicated hardware and software for
+I/O and management alongside a lightweight hypervisor.
+
+The principles informing Limiar's design are:
+
+- Separate management from CPU/memory execution and device services.
+- Keep component responsibilities and cross-boundary interfaces narrow.
+- Minimize unnecessary privilege and shared access, then validate isolation
+  and performance at the actual boundaries.
+
+Limiar pursues these principles through native Hyper-V, OpenHCL in VTL2
+and custom guest firmware on a Windows PC. OpenHCL is a guest-partition
+paravisor, not a Nitro Card or a replacement for Hyper-V L0. This is a
+design inspiration, not a Nitro port or a claim of equivalent hardware
+offload, security guarantees or performance.
+
+## Active Native Path
+
+```text
+Hardware + host UEFI
+  `-- Hyper-V (type 1)
+      |-- Windows root partition: management, device services, physical desktop
+      `-- Guest partition
+          |-- OpenHCL in VTL2: paravisor services and guest firmware path
+          `-- Custom mu_msvm boot -> Windows guest + native GPU-PV
+```
+
+Changing guest UEFI does not flash the physical machine or replace Hyper-V
+L0. Device transport and management integration require independent
+qualification. The current order is EAC investigation, then Looking Glass
+capture/transport and a viewer on physical Windows; TPM is deferred.
+
+## Retained CLI Fixtures
 
 ```text
 Limiar CLI
@@ -28,13 +70,12 @@ Limiar CLI
 ```
 
 The current CLI is not a new hypervisor and does not replace or patch
-Hyper-V. This describes the shipped implementation, not a permanent ban on
-lower-level work. The native Hyper-V Windows lab remains a validation fixture,
-not the chosen product architecture. The Nitro inspiration is
-separation of responsibilities and constrained device paths, not a claim to
-reproduce AWS hardware offload in software.
+Hyper-V. The diagram above describes earlier fixtures, not the active
+OpenHCL setup procedure. QEMU and standalone OpenVMM remain for regression
+testing and source reference; they are not being deleted or migrated.
+The earlier stock Hyper-V lab remains a separate validation fixture.
 
-## QEMU Windows Reference
+## Historical QEMU Reference
 
 Version 0.5 adds `qemu_uefi` to the same registry and supervisor. Its
 argument vector configures Q35, WHPX, explicit QCOW2 storage, per-VM UEFI
@@ -145,20 +186,22 @@ report `GracefulExit`; cleanup is checked by querying the fresh compute-system
 ID after the owned handle closes. Termination-on-last-handle-close provides
 process-exit cleanup as well.
 
-The OpenVMM identity and HCS graphics paths are not interchangeable.
+The earlier standalone OpenVMM identity and HCS graphics paths are not interchangeable.
 The [identity contract](IDENTITY.md) and [GPU-PV laboratory](GPU-PV.md) describe
 their separate capabilities. Dedicated device assignment remains future work
 with host display/recovery preflight and explicit device-specific rollback.
-The core gate requires graphics and identity in one candidate VM. It takes
-precedence over broad management/UI work, and may pull forward an alternative
-graphics transport or runtime when the present paths cannot be combined.
+The native OpenHCL path has since demonstrated selected identity controls
+and GPU-PV offscreen rendering in one VM. That does not extend the earlier
+fixtures' capabilities or complete display/input, performance or security
+qualification. Those gates still take precedence over broad management/UI work.
 
 ## Licensing And Legacy
 
-New Limiar code initially uses the repository's existing MIT OR Apache-2.0
-terms. Upstream OpenVMM retains its MIT notices. The old QEMU device retains
-its own GPL terms. A later per-component license decision does not erase
-upstream notices or change already granted rights.
+The [component license map](../LICENSING.md) governs current licensing.
+Explicitly designated original material uses the no-sale/no-redistribution
+Limiar Private-Use License; existing MIT/Apache grants and upstream terms
+remain intact. Looking Glass-derived work retains GPL terms and cannot be
+subject to that restriction. Private lab firmware remains unreleased.
 
 `backend/`, `driver/`, `protocol/`, and `qemu-device/` remain historical
 prototype components. The new Cargo workspace does not compile or ship them.

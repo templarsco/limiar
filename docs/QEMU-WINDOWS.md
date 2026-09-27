@@ -1,5 +1,10 @@
 # Configurable Windows Reference
 
+Historical reference; QEMU is not the current development focus.
+Use [the native OpenHCL workstream](OPENHCL-COMPATIBILITY.md) for active
+priorities. This guide and its backend/tests remain available; no existing
+VM is removed or migrated by that decision.
+
 Limiar 0.5 adds an experimental QEMU/WHPX UEFI backend to the existing
 profile registry and process supervisor. Windows 11 boots with 22
 configurable SMBIOS Type 0/1/2/3 fields in this path. It is an identity-test
