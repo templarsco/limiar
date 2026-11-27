@@ -38,7 +38,7 @@ do not validate a binary built from the newly published neutral profile.
 | Guest firmware | Configured BIOS, SMBIOS Type 0/1/2/3/4/17, desktop FADT (virtual battery disabled), and post-boot VTL2 ACPI `DSDT` cleanup verified through guest readback | Private `r10` lab firmware images remain unpublished; neutral public reference stays schema-v2 source only |
 | Nested virtualization & CPU clock | Host `ExposeVirtualizationExtensions` + guest Hyper-V places Windows into an L1 root partition, reporting live CPU clock speeds and *"Virtualization: Enabled"* in Task Manager instead of *"Virtual machine: Yes"* | Does not remove Hyper-V L0; must be paired with firmware, ACPI, and GPU-PV alignment |
 | Graphics | Hardware D3D11 and Direct3D 12 (Feature Level SM6) rendering verified in that same guest through GPU-PV; physical-host GPU retained | VMBus command serialization imposes a draw-call ceiling vs. dedicated DDA |
-| Kernel anti-cheat & applications | All tested kernel-level anti-cheats run cleanly on the current native base: EasyAntiCheat EOS (`301` on Fortnite DX12 SM6 and VRChat after isolating and aligning the GPU-PV `VirtualRender`/`vrd.sys` driver surface), Riot Vanguard (Valorant), EA Javelin (skate.), Roblox, and Wuthering Waves | Version- and configuration-scoped research result; future upstream anti-cheat updates may add new checks |
+| Kernel anti-cheat & applications | All tested kernel-level anti-cheats run cleanly on the current native base: **Skate 4** (EA Javelin), **Wuthering Waves**, **Marvel Rivals**, and **Roblox** worked on the first try after removing Hyper-V parameters via complete SMBIOS customization; **EasyAntiCheat EOS** (**VRChat** and **Fortnite** DX12 SM6) was the longest investigation and passes with code `301` after isolating and aligning the GPU-PV `VirtualRender`/`vrd.sys` driver surface | Version- and configuration-scoped research result; future upstream anti-cheat updates may add new checks |
 | Combined requirement | Custom guest firmware, nested root-partition parity, hardware GPU-PV, and kernel-level anti-cheat games coexist in one persistent guest | Does not imply unrestricted L0 control or permanent immunity to upstream anti-cheat changes |
 
 This demonstrates more than changing a VM display name or guest registry
@@ -69,8 +69,9 @@ CPU investigations are not included in this public reference.
 ## Current Priorities
 
 1. Maintain regression coverage for the validated kernel-level anti-cheat
-   baseline (EAC `301` on GPU-PV, Vanguard with nested Hyper-V, EA Javelin,
-   Roblox, Wuthering Waves) as documented in
+   baseline (**Skate 4**, **Wuthering Waves**, **Marvel Rivals**, **Roblox** on
+   first-try SMBIOS/Hyper-V cleanup, and **EasyAntiCheat `301`** on **VRChat**
+   and **Fortnite** DX12 SM6 over GPU-PV) as documented in
    [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md).
 2. Complete and publish Looking Glass capture in the guest, transport, and
    viewer/input on physical Windows; measure the resulting frame pacing and

@@ -105,7 +105,7 @@ in scope, but no replacement has been implemented or selected.
 
 | Path | Role and required evidence |
 |---|---|
-| Native Hyper-V + OpenHCL + mu_msvm | Active development path; custom firmware, nested Hyper-V clock/root-partition parity, GPU-PV D3D11/D3D12 SM6 rendering, and tested kernel anti-cheats (including EAC `301`, Vanguard, EA Javelin, Roblox, Wuthering Waves) confirmed in one guest. Public Looking Glass packaging, broader device control, and full delivery remain open. |
+| Native Hyper-V + OpenHCL + mu_msvm | Active development path; custom firmware, nested Hyper-V clock/root-partition parity, GPU-PV D3D11/D3D12 SM6 rendering, and tested kernel anti-cheats (**Skate 4**, **Wuthering Waves**, **Marvel Rivals**, **Roblox** on first-try SMBIOS/Hyper-V cleanup, and **VRChat** / **Fortnite** EAC `301` on GPU-PV) confirmed in one guest. Public Looking Glass packaging, broader device control, and full delivery remain open. |
 | Existing native Hyper-V / HCS labs | GPU controls only. Existing VM state and ownership remain unchanged. |
 | Standalone OpenVMM/WHP | Source reference and development fixture; no established native GPU-PV binding. |
 | QEMU/OVMF and WSL-nested compatibility lab | Preserve configuration/patch evidence; no further migration into this runtime without a new decision. |

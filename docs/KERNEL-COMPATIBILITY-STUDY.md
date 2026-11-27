@@ -21,17 +21,22 @@ tested anti-cheat clients and game binaries remained unmodified and signed.
 
 Across Limiar's internal native Hyper-V + OpenHCL VTL2 + custom `mu_msvm` +
 GPU-PV lab configuration, **all tested kernel-level anti-cheats and protected
-games run cleanly without virtual-machine blocking**:
+games run cleanly without virtual-machine blocking**.
 
-| Anti-cheat / runtime | Tested titles | Observed result on current native base | Key architectural requirement |
+A central empirical finding of the test campaign was the clear split between
+titles that worked immediately once Hyper-V signatures were stripped through
+complete SMBIOS customization and **EasyAntiCheat (EAC EOS)**, which took the
+longest investigation to isolate:
+
+| Tested titles | Anti-cheat / protection | Observed result on current native base | What was required |
 |---|---|---|---|
-| **EasyAntiCheat EOS** (`EasyAntiCheat_EOS.sys`) | **Fortnite** (Direct3D 12 SM6 on GPU-PV), **VRChat** | **Pass** — EAC bootstrapper code `301` (*Easy Anti-Cheat successfully loaded in-game*); live online entry and D3D12 SM6 rendering verified on shared Radeon RX 9070 XT | Firmware/ACPI coherence + nested Hyper-V root-partition parity + GPU-PV `VirtualRender` (`vrd.sys`) driver-surface alignment |
-| **Riot Vanguard** (`vgk.sys` / `vgc`) | **Valorant** | **Pass** — kernel driver `vgk` active and game launches cleanly | Nested virtualization (`ExposeVirtualizationExtensions`) + guest Hyper-V root-partition state + coherent firmware/SMBIOS |
-| **EA Javelin** | **skate.** | **Pass** — runs cleanly on the native OpenHCL + GPU-PV guest | Native OpenHCL desktop firmware profile + GPU-PV |
-| **Hyperion / client anti-tamper** | **Roblox**, **Wuthering Waves** | **Pass** — runs cleanly on the native OpenHCL + GPU-PV guest | Native OpenHCL desktop firmware profile + GPU-PV |
+| **Skate 4**, **Wuthering Waves**, **Marvel Rivals**, **Roblox** | **EA Javelin**, **ACE (Anti-Cheat Expert)**, **NetEase kernel anti-cheat**, **Hyperion** | **Pass on first try** — ran cleanly without virtual-machine rejection | Removing Hyper-V guest identifiers/parameters via complete custom SMBIOS + native OpenHCL desktop firmware profile and GPU-PV |
+| **VRChat**, **Fortnite** (Direct3D 12 SM6 on GPU-PV) | **EasyAntiCheat EOS** (`EasyAntiCheat_EOS.sys`) | **Pass** — EAC bootstrapper code `301` (*Easy Anti-Cheat successfully loaded in-game*); live online entry and D3D12 SM6 rendering verified on shared Radeon RX 9070 XT | Longest investigation: full SMBIOS/ACPI coherence + nested Hyper-V root-partition parity + isolating and aligning the GPU-PV `VirtualRender` (`vrd.sys`) driver surface |
 
-The key breakthrough closing the remaining gap from the September 2026 snapshot
-was isolating **two distinct layers**:
+While **Skate 4**, **Wuthering Waves**, **Marvel Rivals**, and **Roblox** worked
+on the first attempt purely from removing Hyper-V parameters with complete
+SMBIOS customization, closing the remaining **EasyAntiCheat** gap required
+isolating **two deeper layers**:
 
 1. **Nested Virtualization + Guest Hyper-V (`hvax64.exe` / `hvix64.exe` L1)**,
    which shifts the Windows guest from a Hyper-V child partition into an L1
@@ -116,11 +121,12 @@ When **both** sides are configured together:
   partition rather than a child VM.
 
 > **Important engineering nuance:** Nested virtualization alone does not erase
-> Hyper-V L0, VMBus devices, ACPI tables, or synthetic GPU drivers. Earlier
-> September 2026 tests showed that turning `ExposeVirtualizationExtensions` on
-> by itself already enabled Riot Vanguard startup while leaving EasyAntiCheat
-> code `206` unresolved until the remaining firmware, ACPI, and GPU-PV driver
-> layers below were isolated and aligned.
+> Hyper-V L0, VMBus devices, ACPI tables, or synthetic GPU drivers. While
+> **Skate 4**, **Wuthering Waves**, **Marvel Rivals**, and **Roblox** already
+> worked on the first try once Hyper-V parameters were removed through complete
+> SMBIOS customization, **EasyAntiCheat** (`VRChat` and `Fortnite`) continued
+> returning code `206` until the deeper ACPI, nested root-partition, and GPU-PV
+> driver layers below were isolated and aligned.
 
 ---
 

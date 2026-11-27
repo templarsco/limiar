@@ -4,13 +4,14 @@ Current status, updated November 2026 (recording the October 2026 native `r10`
 lab milestone): native Hyper-V + OpenHCL in real VTL2 + custom `mu_msvm` +
 nested Hyper-V + GPU-PV is the active development path. Configured firmware
 readback, nested root-partition clock telemetry, hardware Direct3D 11/12 GPU-PV
-rendering, and kernel-level anti-cheat compatibility (including EasyAntiCheat
-`301` on Fortnite DX12 SM6 and VRChat after resolving the GPU-PV
-`VirtualRender`/`vrd.sys` driver trigger, alongside Riot Vanguard, EA Javelin,
-Roblox, and Wuthering Waves) are confirmed in the same Windows guest; see
-[KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md). End-to-end
-public Looking Glass packaging remains open. QEMU/WHPX and VirGL are historical
-reference work, not the current focus.
+rendering, and kernel-level anti-cheat compatibility (**Skate 4**, **Wuthering
+Waves**, **Marvel Rivals**, and **Roblox** working on the first try via
+complete SMBIOS customization and Hyper-V parameter removal, plus
+**EasyAntiCheat `301`** on **VRChat** and **Fortnite** DX12 SM6 after isolating
+the GPU-PV `VirtualRender`/`vrd.sys` driver trigger) are confirmed in the same
+Windows guest; see [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md).
+End-to-end public Looking Glass packaging remains open. QEMU/WHPX and VirGL are
+historical reference work, not the current focus.
 
 Earlier CLI, managed identity, Linux GPU-PV and stock Windows fixtures
 remain valid within their recorded scope. The QEMU 0.5/0.6 identity and
@@ -43,8 +44,9 @@ Each phase must produce evidence before its status changes to complete.
 ## Active Order
 
 1. Maintain regression coverage for the validated native OpenHCL + nested
-   Hyper-V + GPU-PV kernel anti-cheat baseline (EAC `301`, Vanguard, EA Javelin,
-   Roblox, Wuthering Waves) documented in
+   Hyper-V + GPU-PV kernel anti-cheat baseline (**Skate 4**, **Wuthering
+   Waves**, **Marvel Rivals**, **Roblox**, **VRChat**, and **Fortnite** / EAC
+   `301`) documented in
    [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md).
 2. Complete and publish Looking Glass capture in the guest, frame transport,
    and viewer/input on physical Windows; measure performance and latency.

@@ -19,8 +19,11 @@ behavior is.
 
 The local OpenHCL guest has passed configured SMBIOS/ACPI readback, nested
 Hyper-V root-partition/CPU clock parity, Direct3D 11/12 GPU-PV rendering, and
-tested kernel-level anti-cheat compatibility (including EasyAntiCheat `301`
-once the GPU-PV `VirtualRender`/`vrd.sys` driver surface is aligned; see
+tested kernel-level anti-cheat compatibility (**Skate 4**, **Wuthering Waves**,
+**Marvel Rivals**, and **Roblox** on the first try once Hyper-V parameters were
+removed with complete SMBIOS customization, plus **EasyAntiCheat `301`** on
+**VRChat** and **Fortnite** once the GPU-PV `VirtualRender`/`vrd.sys` driver
+surface is aligned; see
 [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md)). End-to-end
 public Looking Glass packaging and full platform delivery remain open.
 
