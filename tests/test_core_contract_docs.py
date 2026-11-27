@@ -26,9 +26,11 @@ LICENSING_DOCUMENTS = (
     Path("docs/LIMIAR-FIRMWARE-BASE.md"),
     Path("docs/OPENHCL-COMPATIBILITY.md"),
     Path("docs/GPU-PV-E-DDA.md"),
+    Path("docs/KERNEL-COMPATIBILITY-STUDY.md"),
 )
 RESTRICTED_FILES = {
     "docs/GPU-PV-E-DDA.md",
+    "docs/KERNEL-COMPATIBILITY-STUDY.md",
     "docs/LIMIAR-FIRMWARE-BASE.md",
     "docs/PUBLICATION-REVIEW.md",
     "profiles/openhcl/limiar-reference.json",
@@ -157,6 +159,47 @@ class GpuTutorialDocumentationTests(unittest.TestCase):
     def test_tutorial_mock_checks_are_in_ci(self):
         workflow = (ROOT / ".github/workflows/build.yml").read_text(encoding="utf-8")
         self.assertIn("pwsh -NoProfile -File ./tests/gpu_tutorial.ps1", workflow)
+
+
+class KernelCompatibilityStudyTests(unittest.TestCase):
+    """Verify the kernel anti-cheat, nested Hyper-V, and GPU-PV study links and boundaries."""
+
+    def test_entry_points_link_the_compatibility_study(self):
+        study = ROOT / "docs/KERNEL-COMPATIBILITY-STUDY.md"
+        for relative in (
+            "README.md",
+            "docs/OPENHCL-COMPATIBILITY.md",
+            "docs/DEVELOPMENT-PLAN.md",
+            "docs/CORE-CONTRACT.md",
+            "docs/ARCHITECTURE.md",
+            "docs/GPU-PV-E-DDA.md",
+        ):
+            with self.subTest(document=relative):
+                self.assertIn(study, {target for _, target in local_targets(ROOT / relative)})
+
+    def test_compatibility_study_stays_within_public_boundaries(self):
+        study = ROOT / "docs/KERNEL-COMPATIBILITY-STUDY.md"
+        text = study.read_text(encoding="utf-8")
+        for href, target in local_targets(study):
+            with self.subTest(link=href):
+                self.assertTrue(target.is_relative_to(ROOT))
+                self.assertTrue(target.is_file())
+                self.assertNotIn(".limiar", target.relative_to(ROOT).parts)
+        for href in INLINE_LINK.findall(text):
+            self.assertNotRegex(href, r"^[A-Za-z]:[/\\]")
+            self.assertFalse(href.startswith("file:"))
+        for forbidden in (
+            "C:\\Users\\",
+            "C:/Users/",
+            "limiar-private-backup",
+            "credential.xml",
+            "owner_token",
+            "openhcl-limiar-desktop",
+        ):
+            self.assertNotIn(forbidden, text)
+        self.assertNotRegex(text, r"[0-9a-fA-F]{64}")
+        for required in ("ExposeVirtualizationExtensions", "vrd.sys", "VirtualRender", "301"):
+            self.assertIn(required, text)
 
 
 class ComponentLicensingTests(unittest.TestCase):

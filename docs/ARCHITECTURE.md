@@ -17,9 +17,12 @@ controls, presentation and device transport capabilities.
 Using an API is not the acceptance test; delivering the required machine
 behavior is.
 
-The local OpenHCL guest has passed configured SMBIOS/ACPI readback and
-offscreen hardware D3D11 tests in the same VM. Full platform delivery,
-EAC compatibility and end-to-end Looking Glass remain open.
+The local OpenHCL guest has passed configured SMBIOS/ACPI readback, nested
+Hyper-V root-partition/CPU clock parity, Direct3D 11/12 GPU-PV rendering, and
+tested kernel-level anti-cheat compatibility (including EasyAntiCheat `301`
+once the GPU-PV `VirtualRender`/`vrd.sys` driver surface is aligned; see
+[KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md)). End-to-end
+public Looking Glass packaging and full platform delivery remain open.
 
 ## AWS Nitro Inspiration
 
@@ -54,8 +57,9 @@ Hardware + host UEFI
 
 Changing guest UEFI does not flash the physical machine or replace Hyper-V
 L0. Device transport and management integration require independent
-qualification. The current order is EAC investigation, then Looking Glass
-capture/transport and a viewer on physical Windows; TPM is deferred.
+qualification. With the EAC and kernel anti-cheat research milestone confirmed
+on the current native base, the active public delivery priority is Looking Glass
+capture/transport and a viewer on physical Windows; TPM remains deferred.
 
 ## Retained CLI Fixtures
 

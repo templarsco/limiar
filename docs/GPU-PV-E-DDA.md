@@ -54,11 +54,11 @@ The local evidence summary authorized for publication is:
 
 | Check | Result and limit |
 | --- | --- |
-| Combined configuration | Windows 11, native Hyper-V, OpenHCL in VTL2, custom firmware, and one GPU-PV partition coexisted in the same VM |
+| Combined configuration | Windows 11, native Hyper-V, OpenHCL in VTL2, custom firmware, nested L1 Hyper-V, and one GPU-PV partition coexisted in the same VM |
 | AMD driver | Version 32.0.31041.3013; 133 expected payload files matched between host and guest by size and SHA-256 |
 | Earlier D3D11 checks | Two logical RX entries passed clear/copy/readback: 12,288 pixels each, 24,576 total |
-| Verification for this update | Configuration and hash reads; no new rendering test, DDA test, or VM change |
-| Limits | Not proof of Present, complete OpenGL/Vulkan support, encoding, latency, endurance, GPU operation with relay enabled, or universal compatibility |
+| Kernel anti-cheat & D3D12 study (October 2026) | Controlled A/B isolation confirmed that GPU-PV's `VirtualRender` (`vrd.sys`) driver surface and `1414:008e` metadata triggered EasyAntiCheat code `206`; once aligned alongside firmware and nested Hyper-V parity, Fortnite (Direct3D 12 SM6) and VRChat passed EAC with code `301` on the shared RX 9070 XT. See [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md) |
+| Limits | VMBus command serialization imposes a draw-call ceiling compared to dedicated DDA; DDA remains unverified in the current OpenHCL configuration and compatibility remains version- and configuration-scoped |
 
 Raw receipts, instance identities, and firmware images remain private.
 This result does not validate a binary generated from the
@@ -461,9 +461,13 @@ an architectural inspiration, not certified security or performance
 equivalence.
 
 This tutorial does not provide process-hiding techniques, loaders, or
-game/anti-cheat modifications. Successful GPU operation does not demonstrate
-application acceptance, and switching from GPU-PV to DDA does not guarantee
-that a VM rejection will be resolved. Compatibility tests are separate from
+game/anti-cheat modifications. Successful GPU operation by itself does not
+demonstrate application acceptance; the separate
+[kernel anti-cheat, nested Hyper-V, and GPU-PV compatibility study](KERNEL-COMPATIBILITY-STUDY.md)
+documents how `VirtualRender` (`vrd.sys`) caused EasyAntiCheat `206` under
+GPU-PV, how that driver surface compares with dedicated DDA, and the Windows 11
+24H2 `dxgkrnl.sys` `0x3B` D3D12/BasicRender interaction when combining GPU-PV
+with a virtual display adapter. Compatibility tests remain separate from
 graphics and isolation checks.
 
 The original text and tests in this reference use the

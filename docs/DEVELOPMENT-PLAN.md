@@ -1,10 +1,16 @@
 # Limiar Development Plan
 
-Current status, September 27, 2026: native Hyper-V + OpenHCL in real VTL2 +
-custom mu_msvm is the active development path. Configured firmware readback
-and hardware GPU-PV offscreen rendering have passed in the same Windows
-guest. EAC compatibility and end-to-end Looking Glass remain open.
-QEMU/WHPX and VirGL are historical reference work, not the current focus.
+Current status, updated November 2026 (recording the October 2026 native `r10`
+lab milestone): native Hyper-V + OpenHCL in real VTL2 + custom `mu_msvm` +
+nested Hyper-V + GPU-PV is the active development path. Configured firmware
+readback, nested root-partition clock telemetry, hardware Direct3D 11/12 GPU-PV
+rendering, and kernel-level anti-cheat compatibility (including EasyAntiCheat
+`301` on Fortnite DX12 SM6 and VRChat after resolving the GPU-PV
+`VirtualRender`/`vrd.sys` driver trigger, alongside Riot Vanguard, EA Javelin,
+Roblox, and Wuthering Waves) are confirmed in the same Windows guest; see
+[KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md). End-to-end
+public Looking Glass packaging remains open. QEMU/WHPX and VirGL are historical
+reference work, not the current focus.
 
 Earlier CLI, managed identity, Linux GPU-PV and stock Windows fixtures
 remain valid within their recorded scope. The QEMU 0.5/0.6 identity and
@@ -36,12 +42,14 @@ Each phase must produce evidence before its status changes to complete.
 
 ## Active Order
 
-1. Preserve the working native guest and investigate the remaining
-   EAC compatibility failure with versioned, bounded evidence.
-2. Implement and validate Looking Glass capture in the guest, frame
-   transport and viewer/input on physical Windows. Measure performance.
-3. Continue the applicable native firmware/device coverage and delivery
-   gates without sacrificing working graphics or host isolation.
+1. Maintain regression coverage for the validated native OpenHCL + nested
+   Hyper-V + GPU-PV kernel anti-cheat baseline (EAC `301`, Vanguard, EA Javelin,
+   Roblox, Wuthering Waves) documented in
+   [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md).
+2. Complete and publish Looking Glass capture in the guest, frame transport,
+   and viewer/input on physical Windows; measure performance and latency.
+3. Continue dedicated DDA evaluation (Windows Server) and native firmware/device
+   coverage gates without sacrificing working graphics or host isolation.
 
 TPM remains deferred. A neutral Limiar firmware base is a limited release
 candidate, not permission to publish the lab firmware or full study.
@@ -95,10 +103,12 @@ their numbering does not put management/UI ahead of this gate.
   SMBIOS input surface, and identify the owner of every implementation gap.
 - [x] Prove Windows UEFI boot with distinct custom BIOS/system/baseboard/chassis
   profiles, persistence and guest-side value verification.
-- [x] Verify configured native firmware and hardware GPU-PV offscreen
-  rendering in the same OpenHCL Windows guest.
-- [ ] Resolve the remaining EAC application gate without relabeling
-  offline startup as online acceptance.
+- [x] Verify configured native firmware and hardware GPU-PV offscreen and
+  Direct3D 12 (SM6) rendering in the same OpenHCL Windows guest.
+- [x] Resolve the remaining EAC application gate on the native OpenHCL +
+  nested Hyper-V + GPU-PV lab base (`301` on Fortnite DX12 SM6 and VRChat
+  after isolating the `VirtualRender`/`vrd.sys` driver surface; see
+  [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md)).
 - [ ] Add accelerated presented graphics to that same configurable VM.
 - [ ] Validate Looking Glass input/audio and repeatable interactive
   sessions. Owner-reported game passes are recorded separately from

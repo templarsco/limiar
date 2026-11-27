@@ -1,8 +1,13 @@
 # Limiar Core Contract
 
-Decision date: September 24, 2026; current status updated September 27.
-Native Hyper-V/OpenHCL is the active path. Initial same-VM custom firmware
-and GPU-PV offscreen rendering passed; complete platform delivery is open.
+Decision date: September 24, 2026; current status updated November 2026
+(October 2026 `r10` lab milestone). Native Hyper-V/OpenHCL + nested Hyper-V +
+GPU-PV is the active path. Same-VM custom firmware, live CPU clock /
+root-partition parity, Direct3D 11/12 GPU-PV rendering, and kernel-level
+anti-cheat compatibility (including EasyAntiCheat `301` after isolating the
+GPU-PV `VirtualRender`/`vrd.sys` driver trigger) are confirmed in the lab;
+complete public Looking Glass and platform delivery remain open. See the
+[kernel compatibility study](KERNEL-COMPATIBILITY-STUDY.md).
 
 ## Mission
 
@@ -100,7 +105,7 @@ in scope, but no replacement has been implemented or selected.
 
 | Path | Role and required evidence |
 |---|---|
-| Native Hyper-V + OpenHCL + mu_msvm | Active development path; selected firmware fields and GPU-PV offscreen rendering verified in one guest. EAC, Looking Glass, broader device control and full delivery remain open. |
+| Native Hyper-V + OpenHCL + mu_msvm | Active development path; custom firmware, nested Hyper-V clock/root-partition parity, GPU-PV D3D11/D3D12 SM6 rendering, and tested kernel anti-cheats (including EAC `301`, Vanguard, EA Javelin, Roblox, Wuthering Waves) confirmed in one guest. Public Looking Glass packaging, broader device control, and full delivery remain open. |
 | Existing native Hyper-V / HCS labs | GPU controls only. Existing VM state and ownership remain unchanged. |
 | Standalone OpenVMM/WHP | Source reference and development fixture; no established native GPU-PV binding. |
 | QEMU/OVMF and WSL-nested compatibility lab | Preserve configuration/patch evidence; no further migration into this runtime without a new decision. |
@@ -124,8 +129,10 @@ initial prototype does not complete the full coverage target.
 1. Preserve the completed source pins, first custom firmware/IGVM build,
    native boot, selected identity readback and same-VM GPU-PV pixel evidence.
    Those establish feasibility, not a finished product.
-2. Investigate the outstanding EAC gate in the current native guest;
-   distinguish offline startup, online acceptance and owner reports.
+2. Maintain regression coverage on the resolved EAC and kernel anti-cheat gate
+   (nested Hyper-V root-partition parity + GPU-PV `VirtualRender`/`vrd.sys`
+   alignment documented in [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md));
+   distinguish lab validation from permanent immunity to upstream anti-cheat updates.
 3. Implement and verify Looking Glass capture in the guest, transport and
    viewer/input on physical Windows. TPM remains deferred.
 4. Extend applicable native identity/device/CPU controls and verify readback.

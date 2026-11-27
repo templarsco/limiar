@@ -32,26 +32,31 @@ See the [core contract and next acceptance gate](docs/CORE-CONTRACT.md).
 
 ## Current Native Status
 
-Local research snapshot, September 27, 2026; not a public firmware release
-or a production-ready gaming VM:
+Local research snapshot, updated November 2026 (recording the October 2026
+native `r10` lab milestone); not a public firmware binary release or a turnkey
+production installer:
 
 | Area | Evidence and remaining scope |
 |---|---|
-| Runtime | Native Hyper-V + real OpenHCL VTL2 + custom mu_msvm booted in one persistent Windows guest |
-| Firmware | Configured BIOS, SMBIOS Type 0/1/2/3 and ACPI fields read back in the guest; broader CPU/device control is incomplete |
-| GPU-PV | Hardware D3D11 offscreen pixel tests passed in that same guest while retaining the host GPU |
-| Applications | Compatibility remains under investigation; no universal game or anti-cheat support is claimed |
-| Looking Glass | Guest capture, transport and physical-Windows viewer/input are the next complete delivery after EAC work; not delivered yet |
+| Runtime | Native Hyper-V + real OpenHCL VTL2 + custom `mu_msvm` booted in one persistent Windows guest with nested Hyper-V (`hvax64.exe` L1) |
+| Firmware | Configured BIOS, SMBIOS Type 0/1/2/3/4/17, desktop FADT (virtual battery disabled), and post-boot VTL2 ACPI `DSDT` cleanup verified in the guest |
+| Nested Virtualization & Clock Telemetry | Enabling host nested virtualization (`ExposeVirtualizationExtensions`) + guest Hyper-V transitions the guest into an L1 root partition, replacing Task Manager's *"Virtual machine: Yes"* with live CPU clock speeds and *"Virtualization: Enabled"* |
+| GPU-PV | Hardware D3D11 and Direct3D 12 (Feature Level SM6) workloads verified in that same guest on a shared RX 9070 XT while retaining the host GPU |
+| Kernel Anti-Cheat & Applications | All tested kernel-level anti-cheats and protected titles run cleanly on the current native base — including **EasyAntiCheat EOS** (`301` on Fortnite DX12 SM6 and VRChat once the GPU-PV `VirtualRender`/`vrd.sys` driver surface is aligned), **Riot Vanguard** (Valorant with nested Hyper-V), **EA Javelin** (skate.), **Roblox**, and **Wuthering Waves** |
+| Looking Glass | Native guest capture, transport, and physical-Windows viewer/input are the next complete public delivery; not packaged as a public release yet |
 
-The current order is EAC compatibility investigation, then Looking Glass.
-TPM work is deferred. Performance, presentation and stronger isolation
-claims require their own tests. Hyper-V remains type 1; the Windows desktop
-is in the root partition, while OpenHCL runs within the guest partition.
+The EAC and kernel anti-cheat compatibility milestone on the current native
+OpenHCL + GPU-PV base is now confirmed in the lab (see the
+[kernel anti-cheat, nested Hyper-V, and GPU-PV compatibility study](docs/KERNEL-COMPATIBILITY-STUDY.md));
+the active public delivery priority is Looking Glass, while TPM work remains
+deferred. Hyper-V remains type 1; the Windows desktop is in the root partition,
+while OpenHCL runs within the guest partition.
 
 Read the [GPU-PV and dedicated DDA guide](docs/GPU-PV-E-DDA.md)
 for exact-adapter selection, complete driver preparation, validation and
-recovery. GPU-PV is demonstrated experimentally; DDA remains conditional
-and unverified in the current OpenHCL configuration.
+recovery. GPU-PV is demonstrated experimentally (including EAC `301` in DX12
+games); DDA remains conditional and unverified in the current OpenHCL
+configuration.
 
 ## Publication And Licensing
 
@@ -328,6 +333,7 @@ cargo test --workspace --all-targets --locked
 
 - [Complete development plan and status](docs/DEVELOPMENT-PLAN.md)
 - [Active OpenHCL workstream](docs/OPENHCL-COMPATIBILITY.md)
+- [Kernel anti-cheat, nested Hyper-V, and GPU-PV compatibility study](docs/KERNEL-COMPATIBILITY-STUDY.md)
 - [Core mission, architecture choices and acceptance gate](docs/CORE-CONTRACT.md)
 - [Architecture and implementation boundaries](docs/ARCHITECTURE.md)
 - [Local validation: Windows 11 and RX 9070 XT](docs/validation/2026-09-23-foundation.md)

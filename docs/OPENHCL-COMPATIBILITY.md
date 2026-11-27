@@ -1,12 +1,16 @@
 # Native OpenHCL Workstream
 
-Public status summary, September 27, 2026. Limiar's active direction is
-Windows + native Hyper-V + OpenHCL in real VTL2 + custom mu_msvm guest
-firmware, with shared GPU-PV. QEMU/WHPX and VirGL are retained historical
-references and regression fixtures, not the current implementation focus.
+Public status summary, updated November 2026 (recording the October 2026
+native `r10` lab milestone). Limiar's active direction is Windows + native
+Hyper-V + OpenHCL in real VTL2 + custom `mu_msvm` guest firmware, with shared
+GPU-PV. QEMU/WHPX and VirGL are retained historical references and regression
+fixtures, not the current implementation focus.
 
-This page is a selected feasibility summary. The full lab study, private
-profiles, runtime experiments and firmware images are not published here.
+This page is a selected feasibility and study summary. The full private lab
+patches, real-machine-model profiles, compiled firmware images, and raw
+receipts are not published here. See the
+[kernel anti-cheat, nested Hyper-V, and GPU-PV compatibility study](KERNEL-COMPATIBILITY-STUDY.md)
+for the detailed technical findings.
 
 ## Purpose And Architecture
 
@@ -30,18 +34,24 @@ do not validate a binary built from the newly published neutral profile.
 
 | Area | Local result | Limit |
 |---|---|---|
-| Runtime | Persistent Windows boot under native Hyper-V with OpenHCL in VTL2 and custom mu_msvm | Not a turnkey public VM installer |
-| Guest firmware | Configured BIOS, SMBIOS Type 0/1/2/3 and selected ACPI values verified through guest readback | Not every SMBIOS, CPU or device field is implemented |
-| Graphics | Hardware D3D11 offscreen pixel checks passed in that same guest through GPU-PV; physical-host GPU retained | Not a latency, presentation or universal graphics-API result |
-| Combined requirement | Custom guest firmware metadata and hardware GPU-PV coexist in one guest | Does not imply unrestricted L0 control or universal application acceptance |
+| Runtime | Persistent Windows boot under native Hyper-V with OpenHCL in VTL2, custom `mu_msvm`, and nested L1 Hyper-V (`hvax64.exe`) | Not a turnkey public VM installer |
+| Guest firmware | Configured BIOS, SMBIOS Type 0/1/2/3/4/17, desktop FADT (virtual battery disabled), and post-boot VTL2 ACPI `DSDT` cleanup verified through guest readback | Private `r10` lab firmware images remain unpublished; neutral public reference stays schema-v2 source only |
+| Nested virtualization & CPU clock | Host `ExposeVirtualizationExtensions` + guest Hyper-V places Windows into an L1 root partition, reporting live CPU clock speeds and *"Virtualization: Enabled"* in Task Manager instead of *"Virtual machine: Yes"* | Does not remove Hyper-V L0; must be paired with firmware, ACPI, and GPU-PV alignment |
+| Graphics | Hardware D3D11 and Direct3D 12 (Feature Level SM6) rendering verified in that same guest through GPU-PV; physical-host GPU retained | VMBus command serialization imposes a draw-call ceiling vs. dedicated DDA |
+| Kernel anti-cheat & applications | All tested kernel-level anti-cheats run cleanly on the current native base: EasyAntiCheat EOS (`301` on Fortnite DX12 SM6 and VRChat after isolating and aligning the GPU-PV `VirtualRender`/`vrd.sys` driver surface), Riot Vanguard (Valorant), EA Javelin (skate.), Roblox, and Wuthering Waves | Version- and configuration-scoped research result; future upstream anti-cheat updates may add new checks |
+| Combined requirement | Custom guest firmware, nested root-partition parity, hardware GPU-PV, and kernel-level anti-cheat games coexist in one persistent guest | Does not imply unrestricted L0 control or permanent immunity to upstream anti-cheat changes |
 
 This demonstrates more than changing a VM display name or guest registry
-label. It does not establish equivalence to physical hardware, protection
-from every guest-to-host vulnerability or support for every application.
+label. It does not establish physical-hardware equivalence, protection from
+every guest-to-host vulnerability, or a permanent guarantee against future
+upstream anti-cheat updates.
 
 The [GPU-PV and DDA guide](GPU-PV-E-DDA.md) describes the selected public
 setup and validation reference. It separates working experimental GPU-PV
 from dedicated DDA, which is not validated in this OpenHCL configuration.
+The [kernel anti-cheat, nested Hyper-V, and GPU-PV compatibility study](KERNEL-COMPATIBILITY-STUDY.md)
+documents the nested-virtualization clock/root-partition study and the
+`VirtualRender` / `vrd.sys` root-cause isolation behind EasyAntiCheat `301`.
 
 ## Selected Source Reference
 
@@ -58,11 +68,16 @@ CPU investigations are not included in this public reference.
 
 ## Current Priorities
 
-1. Continue the remaining EAC compatibility investigation without
-   presenting an offline startup or isolated report as universal support.
-2. Implement and validate Looking Glass capture in the guest, transport,
-   and viewer/input on physical Windows; measure the resulting performance.
-3. Complete the applicable native device, reliability and isolation gates.
+1. Maintain regression coverage for the validated kernel-level anti-cheat
+   baseline (EAC `301` on GPU-PV, Vanguard with nested Hyper-V, EA Javelin,
+   Roblox, Wuthering Waves) as documented in
+   [KERNEL-COMPATIBILITY-STUDY.md](KERNEL-COMPATIBILITY-STUDY.md).
+2. Complete and publish Looking Glass capture in the guest, transport, and
+   viewer/input on physical Windows; measure the resulting frame pacing and
+   latency.
+3. Evaluate dedicated GPU passthrough (DDA on Windows Server) and native
+   OpenHCL device models (such as NVMe) alongside reliability and isolation
+   gates.
 
 TPM work remains deferred. Looking Glass is the intended complete public
 integration under its upstream GPL terms; it is not delivered by this
